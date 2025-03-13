@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { ArrowRight, Upload } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
+import { v4 } from "uuid";
 
 interface AreaAccordionProps {
   selectedLayoutStep: number;
@@ -77,6 +78,7 @@ export function AreaAccordion({
         updatedAreas.push({
           name: value,
           id: id.toString(),
+          localId: v4(),
           sectors: null,
         });
       }

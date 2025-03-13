@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { ArrowRight, ChevronLeft, Upload } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { v4 } from "uuid";
 
 interface SectorAccordionProps {
   selectedLayoutStep: number;
@@ -90,6 +91,7 @@ export function SectorAccordion({
             updatedSectors.push({
               name: value,
               id: sectorId.toString(),
+              localId: v4(),
               equipments: null,
             });
           }
@@ -105,6 +107,7 @@ export function SectorAccordion({
 
   const handleSelectArea = (area: AreaProps) => {
     setSelectedArea(area);
+    setSectorsPages(1);
 
     // Properly reset sector values
     if (area.sectors && area.sectors.length > 0) {
@@ -116,9 +119,13 @@ export function SectorAccordion({
 
       setInputSectorValues(updatedSectorValues);
       setSectorsArrayLength(area.sectors.length);
+      setSectorsPages((prevPages) =>
+        (area.sectors.length + 1) / 6 > prevPages ? prevPages + 1 : prevPages,
+      );
     } else {
       setInputSectorValues(Array(5).fill("")); // Default empty values
       setSectorsArrayLength(5);
+      setSectorsPages(1);
     }
 
     setCurrentSectorPage(1);
@@ -179,7 +186,7 @@ export function SectorAccordion({
                   "bg-primary flex h-10 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white",
                   layoutData &&
                     layoutData.areas &&
-                    !layoutData.areas.find((area) => area.sectors) &&
+                    layoutData.areas.find((area) => !area.sectors) &&
                     "pointer-events-none cursor-not-allowed opacity-50",
                 )}
               >
@@ -232,7 +239,7 @@ export function SectorAccordion({
                           "bg-white/20 text-white",
                         )}
                       >
-                        {selectedArea.id}.
+                        {selectedArea.localId}
                       </span>
                       <input
                         className={cn(
@@ -304,7 +311,7 @@ export function SectorAccordion({
                         }
                       />
                       <Image
-                        src="/icons/area.png"
+                        src="/icons/sector.png"
                         alt=""
                         width={200}
                         height={200}
