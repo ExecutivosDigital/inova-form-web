@@ -53,7 +53,11 @@ export function SectorAccordion({
     if (!selectedArea) return;
 
     const sectorId =
-      currentSectorPage > 1 ? (currentSectorPage - 1) * 6 + index : index;
+      currentSectorPage > 1
+        ? (currentSectorPage - 1) * 6 + index + 1
+        : index + 1;
+
+    const fullLocalId = `${selectedArea.localId}.${sectorId}`;
 
     setInputSectorValues((prev) => {
       const updatedInputs = [...prev];
@@ -69,13 +73,13 @@ export function SectorAccordion({
           let updatedSectors = area.sectors ? [...area.sectors] : [];
 
           const existingSectorIndex = updatedSectors.findIndex(
-            (sector) => sector.id === sectorId.toString(),
+            (sector) => sector.localId === fullLocalId.toString(),
           );
 
           if (value === "") {
             // Remove sector if input is empty
             updatedSectors = updatedSectors.filter(
-              (sector) => sector.id !== sectorId.toString(),
+              (sector) => sector.localId !== fullLocalId.toString(),
             );
             return {
               ...area,
@@ -90,8 +94,8 @@ export function SectorAccordion({
             // Otherwise, add a new sector
             updatedSectors.push({
               name: value,
-              id: sectorId.toString(),
-              localId: v4(),
+              id: v4(),
+              localId: fullLocalId,
               equipments: null,
             });
           }
@@ -120,7 +124,9 @@ export function SectorAccordion({
       setInputSectorValues(updatedSectorValues);
       setSectorsArrayLength(area.sectors.length);
       setSectorsPages((prevPages) =>
-        (area.sectors.length + 1) / 6 > prevPages ? prevPages + 1 : prevPages,
+        ((area.sectors ? area.sectors.length : 0) + 1) / 6 > prevPages
+          ? prevPages + 1
+          : prevPages,
       );
     } else {
       setInputSectorValues(Array(5).fill("")); // Default empty values
@@ -229,13 +235,13 @@ export function SectorAccordion({
                   >
                     <label
                       className={cn(
-                        "relative flex h-12 w-max items-center justify-start rounded-2xl px-1",
+                        "relative flex h-12 w-max items-center justify-start rounded-2xl pr-1",
                         "bg-primary",
                       )}
                     >
                       <span
                         className={cn(
-                          "bg-primary/20 text-primary flex h-10 w-10 items-center justify-center rounded-full p-1 font-bold",
+                          "bg-primary/20 text-primary flex h-12 w-12 items-center justify-center rounded-2xl p-1 font-bold",
                           "bg-white/20 text-white",
                         )}
                       >
@@ -280,8 +286,8 @@ export function SectorAccordion({
                         "relative flex h-12 items-center justify-end rounded-2xl px-4",
                         inputSectorValues[
                           currentSectorPage > 1
-                            ? (currentSectorPage - 1) * 6 + index
-                            : index
+                            ? (currentSectorPage - 1) * 6 + index + 1
+                            : index + 1
                         ]
                           ? "bg-primary"
                           : "",
@@ -292,8 +298,8 @@ export function SectorAccordion({
                           "peer transparent absolute left-0 h-full w-[calc(100%-2rem)] px-4 placeholder:text-neutral-300 focus:outline-none",
                           inputSectorValues[
                             currentSectorPage > 1
-                              ? (currentSectorPage - 1) * 6 + index
-                              : index
+                              ? (currentSectorPage - 1) * 6 + index + 1
+                              : index + 1
                           ]
                             ? "text-white"
                             : "",
@@ -302,8 +308,8 @@ export function SectorAccordion({
                         value={
                           inputSectorValues[
                             currentSectorPage > 1
-                              ? (currentSectorPage - 1) * 6 + index
-                              : index
+                              ? (currentSectorPage - 1) * 6 + index + 1
+                              : index + 1
                           ] || ""
                         }
                         onChange={(e) =>
@@ -319,8 +325,8 @@ export function SectorAccordion({
                           "absolute h-max w-5 object-contain transition duration-200 peer-focus:translate-x-2 peer-focus:opacity-0",
                           inputSectorValues[
                             currentSectorPage > 1
-                              ? (currentSectorPage - 1) * 6 + index
-                              : index
+                              ? (currentSectorPage - 1) * 6 + index + 1
+                              : index + 1
                           ]
                             ? "opacity-0"
                             : "peer-focus:translate-x-2 peer-focus:opacity-0",
@@ -330,8 +336,8 @@ export function SectorAccordion({
                         src={
                           inputSectorValues[
                             currentSectorPage > 1
-                              ? (currentSectorPage - 1) * 6 + index
-                              : index
+                              ? (currentSectorPage - 1) * 6 + index + 1
+                              : index + 1
                           ]
                             ? "/icons/checkCheckWhite.png"
                             : "/icons/checkCheck.png"
@@ -343,8 +349,8 @@ export function SectorAccordion({
                           "absolute h-max w-5 -translate-x-2 object-contain opacity-0 transition duration-200 peer-focus:translate-x-0 peer-focus:opacity-100",
                           inputSectorValues[
                             currentSectorPage > 1
-                              ? (currentSectorPage - 1) * 6 + index
-                              : index
+                              ? (currentSectorPage - 1) * 6 + index + 1
+                              : index + 1
                           ]
                             ? "translate-x-0 opacity-100"
                             : "-translate-x-2 opacity-0",
@@ -355,8 +361,8 @@ export function SectorAccordion({
                           "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
                           inputSectorValues[
                             currentSectorPage > 1
-                              ? (currentSectorPage - 1) * 6 + index
-                              : index
+                              ? (currentSectorPage - 1) * 6 + index + 1
+                              : index + 1
                           ]
                             ? "shadow-[0px_2px_7px_rgba(0,0,0,0.5)]"
                             : "",

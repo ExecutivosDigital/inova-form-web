@@ -56,12 +56,14 @@ export function AreaAccordion({
       let updatedAreas = [...(prevLayout.areas || [])];
 
       const existingAreaIndex = updatedAreas.findIndex(
-        (area) => area.id === id.toString(),
+        (area) => area.localId === id.toString(),
       );
 
       if (value === "") {
         // If input is empty, remove the area from layoutData
-        updatedAreas = updatedAreas.filter((area) => area.id !== id.toString());
+        updatedAreas = updatedAreas.filter(
+          (area) => area.localId !== id.toString(),
+        );
 
         // If the array is empty, revert it to null
         return {
@@ -77,8 +79,8 @@ export function AreaAccordion({
         // Otherwise, add a new area
         updatedAreas.push({
           name: value,
-          id: id.toString(),
-          localId: v4(),
+          id: v4(),
+          localId: id.toString(),
           sectors: null,
         });
       }

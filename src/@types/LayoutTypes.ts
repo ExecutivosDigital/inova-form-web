@@ -13,6 +13,7 @@ export interface SubSetProps {
 
 export interface SetProps {
   name: string;
+  code: string;
   id: string;
   localId: string;
   subSets: SubSetProps[] | null;
@@ -20,6 +21,13 @@ export interface SetProps {
 
 export interface EquipmentsProps {
   name: string;
+  tag: string;
+  type: string;
+  maker: string;
+  model: string;
+  year: string;
+  description: string;
+  photos: string[] | null;
   id: string;
   localId: string;
   sets: SetProps[] | null;

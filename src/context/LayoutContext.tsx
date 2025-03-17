@@ -18,12 +18,10 @@ interface ProviderProps {
 }
 
 export const LayoutContextProvider = ({ children }: ProviderProps) => {
-  const [selectedLayoutStep, setSelectedLayoutStep] = useState(1);
+  const [selectedLayoutStep, setSelectedLayoutStep] = useState(3);
   const [layoutData, setLayoutData] = useState<LayoutTypeProps>({
     areas: null,
   });
-
-  console.log("layoutData: ", layoutData);
 
   useEffect(() => {
     setLayoutData({
