@@ -1,5 +1,5 @@
 "use client";
-import { EquipmentsProps, SectorProps } from "@/@types/LayoutTypes";
+import { EquipmentsProps, SectorProps, SetProps } from "@/@types/LayoutTypes";
 import { CustomPagination } from "@/components/global/CustomPagination";
 import {
   AccordionContent,
@@ -12,6 +12,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/global/ui/popover";
+import { ScrollArea } from "@/components/global/ui/scroll-area";
 import { useLayoutContext } from "@/context/LayoutContext";
 import { cn } from "@/lib/utils";
 import { ArrowRight, ChevronLeft, Search, Upload } from "lucide-react";
@@ -37,119 +38,162 @@ export function SetAccordion({
   const [equipmentPages, setEquipmentPages] = useState<number>(1);
   const [currentSectorPage, setCurrentSectorPage] = useState(1);
   const [currentEquipmentPage, setCurrentEquipmentPage] = useState(1);
-  const [equipmentsArrayLength, setEquipmentsArrayLength] = useState(5);
-  const [inputEquipmentValues, setInputEquipmentValues] = useState<string[]>(
-    Array(equipmentsArrayLength).fill(""),
+  const [setsArrayLength, setSetsArrayLength] = useState(3);
+  const [inputSetsValues, setInputSetsValues] = useState<SetProps[]>(
+    Array(setsArrayLength).fill({
+      name: "",
+      code: "",
+      id: "",
+      localId: "",
+      subSets: null,
+    }),
   );
   const [isSectorNameHovered, setIsSectorNameHovered] = useState(false);
+  const [isEquipmentNameHovered, setIsEquipmentNameHovered] = useState(false);
   const [selectedEquipment, setSelectedEquipment] =
     useState<EquipmentsProps | null>(null);
 
-  const handleAddEquipment = () => {
-    setEquipmentsArrayLength((prevLength) => prevLength + 1);
-    setInputEquipmentValues((prev) => [...prev, ""]);
-    setEquipmentPages((prevPages) =>
-      (equipmentsArrayLength + 1) / 6 > prevPages ? prevPages + 1 : prevPages,
-    );
+  const isSetFullyFilled = (set: SetProps) => {
+    return set.name && set.code;
   };
 
-  const handleInputChange = (index: number, value: string) => {
-    if (!selectedSector) return;
+  const handleAddSet = () => {
+    setSetsArrayLength((prevLength) => prevLength + 1);
+    setInputSetsValues((prev) => [
+      ...prev,
+      {
+        name: "",
+        code: "",
+        id: "",
+        localId: "",
+        subSets: null,
+      },
+    ]);
+  };
 
-    const equipmentId =
-      currentEquipmentPage > 1 ? (currentEquipmentPage - 1) * 6 + index : index;
+  const handleInputChange = (
+    index: number,
+    field: keyof SetProps,
+    value: string,
+  ) => {
+    if (!selectedSector || !selectedEquipment) return;
 
-    // Update local input state for UI responsiveness
-    setInputEquipmentValues((prev) => {
+    const fullLocalId = `${selectedEquipment.localId}.${index + 1}`;
+
+    setInputSetsValues((prev) => {
       const updatedInputs = [...prev];
-      updatedInputs[index] = value;
+      updatedInputs[index] = {
+        ...updatedInputs[index],
+        [field]: value,
+      };
       return updatedInputs;
     });
 
     setLayoutData((prevLayout) => {
       if (!prevLayout.areas) return prevLayout; // Ensure areas exist
 
-      // Create a deep copy of areas
       const updatedAreas = prevLayout.areas.map((area) => {
         if (!area.sectors) return area; // Skip areas without sectors
 
-        // Find the area that contains the selected sector
         const updatedSectors = area.sectors.map((sector) => {
-          if (sector.id !== selectedSector.id) return sector; // Skip sectors that aren’t selected
+          if (sector.localId !== selectedSector.localId) return sector; // Skip unrelated sectors
 
-          // Deep copy equipment array
-          let updatedEquipments = sector.equipments
+          // Ensure equipments exist in sector, default to an empty array if null
+          const updatedEquipments = sector.equipments
             ? [...sector.equipments]
             : [];
 
           const existingEquipmentIndex = updatedEquipments.findIndex(
-            (equipment) => equipment.id === equipmentId.toString(),
+            (equipment) => equipment.localId === selectedEquipment.localId,
           );
 
-          if (value === "") {
-            // Remove equipment if input is cleared
-            updatedEquipments = updatedEquipments.filter(
-              (equipment) => equipment.id !== equipmentId.toString(),
+          if (existingEquipmentIndex !== -1) {
+            // Find the correct equipment and modify its sets array
+            const equipment = updatedEquipments[existingEquipmentIndex];
+
+            // Ensure sets exist or create an empty array
+            const updatedSets = equipment.sets ? [...equipment.sets] : [];
+
+            // Find the existing set by localId
+            const existingSetIndex = updatedSets.findIndex(
+              (set) => set.localId === fullLocalId,
             );
-          } else if (existingEquipmentIndex !== -1) {
-            // Update existing equipment name
+
+            if (existingSetIndex !== -1) {
+              // If the set exists, update the specified field
+              updatedSets[existingSetIndex] = {
+                ...updatedSets[existingSetIndex],
+                [field]: value,
+              };
+            } else {
+              // If the set doesn't exist, add a new one
+              updatedSets.push({
+                name: "",
+                code: "",
+                id: v4(), // Unique ID
+                localId: fullLocalId,
+                subSets: null,
+                [field]: value,
+              });
+            }
+
+            // Assign updated sets back to equipment
             updatedEquipments[existingEquipmentIndex] = {
-              ...updatedEquipments[existingEquipmentIndex], // Preserve properties
-              name: value,
+              ...equipment,
+              sets: updatedSets, // Update sets array in this equipment
             };
-          } else {
-            // Add new equipment
-            updatedEquipments.push({
-              name: value,
-              id: equipmentId.toString(),
-              localId: v4(),
-              sets: null, // Assuming sets are initially null
-            });
           }
 
-          // Return the modified sector while keeping others unchanged
           return {
             ...sector,
-            equipments: updatedEquipments, // Only update the selected sector's equipments
+            equipments: updatedEquipments.length > 0 ? updatedEquipments : null, // Ensure correct type
           };
         });
 
-        // If this area contains the selected sector, update it
         return {
           ...area,
-          sectors: updatedSectors, // Keep other sectors unchanged
+          sectors: updatedSectors.length > 0 ? updatedSectors : [], // Ensure correct type
         };
       });
 
-      return { ...prevLayout, areas: updatedAreas };
+      return {
+        ...prevLayout,
+        areas: updatedAreas.length > 0 ? updatedAreas : [],
+      }; // Ensure correct type
     });
   };
 
-  const handleSelectSector = (sector: SectorProps) => {
-    setSelectedSector(sector);
+  const handleSelectEquipment = (equipment: EquipmentsProps) => {
+    setSelectedEquipment(equipment);
     setEquipmentPages(1);
 
     // Properly reset sector values
-    if (sector.equipments && sector.equipments.length > 0) {
-      // Create a new array and preserve order
-      const updatedEquipmentValues = Array(sector.equipments.length).fill("");
-      sector.equipments.forEach((sector, index) => {
-        updatedEquipmentValues[index] = sector.name; // Preserve sector order
-      });
+    if (equipment.sets && equipment.sets.length > 0) {
+      // Keep full equipment objects instead of replacing them with strings
+      const updatedSetValues = equipment.sets.map((set) => ({
+        ...set, // Copy all properties of the existing equipment
+      }));
 
-      setInputEquipmentValues(updatedEquipmentValues);
-      setEquipmentsArrayLength(sector.equipments.length);
+      setInputSetsValues(updatedSetValues);
+      setSetsArrayLength(equipment.sets.length);
       setEquipmentPages((prevPages) =>
-        (sector.equipments.length + 1) / 6 > prevPages
+        ((equipment.sets ? equipment.sets.length : 0) + 1) / 6 > prevPages
           ? prevPages + 1
           : prevPages,
       );
     } else {
-      setInputEquipmentValues(Array(5).fill("")); // Default empty values
-      setEquipmentsArrayLength(5);
-      setEquipmentPages(1);
+      // Initialize with default equipment structure instead of strings
+      setInputSetsValues(
+        Array(5).fill({
+          name: "",
+          code: "",
+          id: "",
+          localId: "",
+          subSets: null,
+        }),
+      );
+      setSetsArrayLength(3);
     }
-
     setCurrentSectorPage(1);
   };
 
@@ -161,6 +205,20 @@ export function SetAccordion({
       setSectorsPages(Math.ceil(layoutData.areas.length / 12));
     }
   }, [layoutData.areas]);
+
+  useEffect(() => {
+    if (!layoutData.areas || !selectedSector?.localId) return;
+
+    const selectedSectorData = layoutData.areas
+      .flatMap((area) => area.sectors || [])
+      .find((sector) => sector.localId === selectedSector.localId);
+
+    if (selectedSectorData?.equipments?.length) {
+      setEquipmentPages(
+        Math.ceil((selectedSectorData.equipments.length || 0) / 6),
+      );
+    }
+  }, [layoutData.areas, selectedSector?.localId]);
 
   return (
     <AccordionItem value="4" onClick={() => setSelectedLayoutStep(4)}>
@@ -207,7 +265,17 @@ export function SetAccordion({
                   e.stopPropagation();
                   setSelectedLayoutStep(5);
                 }}
-                className="bg-primary flex h-10 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white"
+                className={cn(
+                  "bg-primary flex h-10 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white",
+                  layoutData &&
+                    layoutData.areas &&
+                    layoutData.areas.find((area) =>
+                      area.sectors?.find((sector) =>
+                        sector.equipments?.find((eq) => !eq.sets),
+                      ),
+                    ) &&
+                    "pointer-events-none cursor-not-allowed opacity-50",
+                )}
               >
                 <span>Avançar 1.5</span>
                 <ArrowRight />
@@ -221,12 +289,13 @@ export function SetAccordion({
           className={cn(
             "grid grid-cols-4 gap-4 border-t border-neutral-300 p-4",
             selectedSector && "grid-cols-3",
+            selectedEquipment && "px-0",
           )}
         >
-          {selectedEquipment ? (
+          {selectedEquipment !== null ? (
             <>
-              <div className="col-span-3 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
+              <div className="col-span-3 flex flex-col justify-between gap-2">
+                <div className="flex items-center gap-2 px-4">
                   <button
                     onClick={() => setSelectedEquipment(null)}
                     className="text-primary flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-[0px_0px_10px_0px_rgba(0,0,0,0.35)]"
@@ -239,23 +308,23 @@ export function SetAccordion({
                   >
                     <PopoverTrigger
                       asChild
-                      onMouseEnter={() => setIsImportHovered(true)}
-                      onMouseLeave={() => setIsImportHovered(false)}
+                      onMouseEnter={() => setIsSectorNameHovered(true)}
+                      onMouseLeave={() => setIsSectorNameHovered(false)}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setIsImportHovered(false);
+                        setIsSectorNameHovered(false);
                       }}
-                      onBlur={() => setIsImportHovered(false)}
+                      onBlur={() => setIsSectorNameHovered(false)}
                     >
                       <label
                         className={cn(
-                          "relative flex h-12 w-max items-center justify-start rounded-2xl pr-1",
+                          "relative flex h-12 w-40 items-center justify-start overflow-hidden rounded-2xl pr-1",
                           "bg-primary",
                         )}
                       >
                         <span
                           className={cn(
-                            "bg-primary/20 text-primary flex h-12 w-12 items-center justify-center rounded-2xl p-1 font-bold",
+                            "bg-primary/20 text-primary flex h-12 w-12 min-w-12 items-center justify-center rounded-2xl p-1 font-bold",
                             "bg-white/20 text-white",
                           )}
                         >
@@ -279,34 +348,34 @@ export function SetAccordion({
                         />
                       </label>
                     </PopoverTrigger>
-                    <PopoverContent className="w-max max-w-40 p-1 text-sm break-words">
+                    <PopoverContent className="w-max max-w-40 bg-white p-1 text-sm break-words">
                       <PopoverArrow className="fill-neutral-300" />
                       <span>{selectedSector?.name}</span>
                     </PopoverContent>
                   </Popover>
                   <Popover
-                    open={isSectorNameHovered}
-                    onOpenChange={setIsSectorNameHovered}
+                    open={isEquipmentNameHovered}
+                    onOpenChange={setIsEquipmentNameHovered}
                   >
                     <PopoverTrigger
                       asChild
-                      onMouseEnter={() => setIsImportHovered(true)}
-                      onMouseLeave={() => setIsImportHovered(false)}
+                      onMouseEnter={() => setIsEquipmentNameHovered(true)}
+                      onMouseLeave={() => setIsEquipmentNameHovered(false)}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setIsImportHovered(false);
+                        setIsEquipmentNameHovered(false);
                       }}
-                      onBlur={() => setIsImportHovered(false)}
+                      onBlur={() => setIsEquipmentNameHovered(false)}
                     >
                       <label
                         className={cn(
-                          "relative flex h-12 w-max items-center justify-start rounded-2xl pr-1",
+                          "relative flex h-12 w-40 items-center justify-start overflow-hidden rounded-2xl pr-1",
                           "bg-primary",
                         )}
                       >
                         <span
                           className={cn(
-                            "bg-primary/20 text-primary flex h-12 w-12 items-center justify-center rounded-2xl p-1 font-bold",
+                            "bg-primary/20 text-primary flex h-12 w-12 min-w-12 items-center justify-center rounded-2xl p-1 font-bold",
                             "bg-white/20 text-white",
                           )}
                         >
@@ -330,108 +399,76 @@ export function SetAccordion({
                         />
                       </label>
                     </PopoverTrigger>
-                    <PopoverContent className="w-max max-w-40 p-1 text-sm break-words">
+                    <PopoverContent className="w-max max-w-40 bg-white p-1 text-sm break-words">
                       <PopoverArrow className="fill-neutral-300" />
-                      <span>{selectedSector?.name}</span>
+                      <span>{selectedEquipment?.name}</span>
                     </PopoverContent>
                   </Popover>
                 </div>
-              </div>
-              <div className="col-span-3 flex flex-col gap-4">
-                <div className="flex w-full items-end justify-between">
-                  <div className="text-primary flex h-12 w-12 items-center justify-center rounded-2xl font-bold shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)]">
-                    1.
-                  </div>
-                  <div className="flex w-2/5 flex-col gap-2">
-                    <span className="text-primary text-sm">
-                      Nome do Conjunto
-                    </span>
-                    <input
-                      className="text-primary h-12 w-full rounded-2xl px-4 shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] placeholder:text-neutral-300 focus:outline-none"
-                      placeholder="Nome do Conjunto"
-                    />
-                  </div>
-                  <div className="flex w-2/5 flex-col gap-2">
-                    <span className="text-primary text-sm">
-                      Código do Conjunto
-                    </span>
-                    <input
-                      className="text-primary h-12 w-full rounded-2xl px-4 shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] placeholder:text-neutral-300 focus:outline-none"
-                      placeholder="Código do Conjunto"
-                    />
-                  </div>
+                <div className="flex h-60 w-full flex-col">
+                  <ScrollArea className="h-full">
+                    {[...Array(setsArrayLength)].map((_, index) => (
+                      <div
+                        key={index}
+                        className="col-span-3 mb-1 flex items-end justify-between gap-4 px-4"
+                      >
+                        <div
+                          className={cn(
+                            "text-primary flex h-12 w-12 min-w-12 items-center justify-center rounded-2xl bg-white font-bold shadow-[0px_2px_7px_rgba(0,0,0,0.15)]",
+                            isSetFullyFilled(inputSetsValues[index]) &&
+                              "bg-primary text-white",
+                          )}
+                        >
+                          <span>{index + 1}.</span>
+                        </div>
+                        <div className="flex w-full flex-col">
+                          <span className="text-primary text-sm">
+                            Nome do Conjunto
+                          </span>
+                          <input
+                            type="text"
+                            className="h-12 w-full rounded-2xl bg-white p-2 px-4 shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] placeholder:text-neutral-300 focus:outline-none"
+                            placeholder="Identificação do Conjunto"
+                            onChange={(e) =>
+                              handleInputChange(index, "name", e.target.value)
+                            }
+                            value={inputSetsValues[index].name}
+                          />
+                        </div>
+                        <div className="flex w-full flex-col">
+                          <span className="text-primary text-sm">
+                            Código do Conjunto
+                          </span>
+                          <input
+                            type="text"
+                            className="h-12 w-full rounded-2xl bg-white p-2 px-4 shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] placeholder:text-neutral-300 focus:outline-none"
+                            placeholder="Código do Conjunto"
+                            onChange={(e) =>
+                              handleInputChange(index, "code", e.target.value)
+                            }
+                            value={inputSetsValues[index].code}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </ScrollArea>
                 </div>
-                <div className="flex w-full items-end justify-between">
-                  <div className="text-primary flex h-12 w-12 items-center justify-center rounded-2xl font-bold shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)]">
-                    2.
-                  </div>
-                  <div className="flex w-2/5 flex-col gap-2">
-                    <span className="text-primary text-sm">
-                      Nome do Conjunto
-                    </span>
-                    <input
-                      className="text-primary h-12 w-full rounded-2xl px-4 shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] placeholder:text-neutral-300 focus:outline-none"
-                      placeholder="Nome do Conjunto"
-                    />
-                  </div>
-                  <div className="flex w-2/5 flex-col gap-2">
-                    <span className="text-primary text-sm">
-                      Código do Conjunto
-                    </span>
-                    <input
-                      className="text-primary h-12 w-full rounded-2xl px-4 shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] placeholder:text-neutral-300 focus:outline-none"
-                      placeholder="Código do Conjunto"
-                    />
-                  </div>
-                </div>
-                <div className="flex w-full items-end justify-between">
-                  <div className="text-primary flex h-12 w-12 items-center justify-center rounded-2xl font-bold shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)]">
-                    3.
-                  </div>
-                  <div className="flex w-2/5 flex-col gap-2">
-                    <span className="text-primary text-sm">
-                      Nome do Conjunto
-                    </span>
-                    <input
-                      className="text-primary h-12 w-full rounded-2xl px-4 shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] placeholder:text-neutral-300 focus:outline-none"
-                      placeholder="Nome do Conjunto"
-                    />
-                  </div>
-                  <div className="flex w-2/5 flex-col gap-2">
-                    <span className="text-primary text-sm">
-                      Código do Conjunto
-                    </span>
-                    <input
-                      className="text-primary h-12 w-full rounded-2xl px-4 shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] placeholder:text-neutral-300 focus:outline-none"
-                      placeholder="Código do Conjunto"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="col-span-3 flex w-full items-center justify-between">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!selectedSector) {
-                      setSelectedLayoutStep(2);
-                    } else {
-                      handleAddEquipment();
-                    }
-                  }}
-                  className={cn(
-                    "bg-primary h-12 w-max self-end rounded-full px-4 font-bold text-white",
-                  )}
-                >
-                  + Cadastrar outro Conjunto
-                </button>
-                <div className="flex h-12 items-center justify-center gap-4">
+                <div className="flex w-full items-center justify-between px-4">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddSet();
+                    }}
+                    className={cn(
+                      "bg-primary h-12 w-max self-end rounded-full px-4 font-bold text-white",
+                    )}
+                  >
+                    + Cadastrar outro Conjunto
+                  </button>
                   <button
                     onClick={() => setSelectedEquipment(null)}
-                    className="h-10 w-max rounded-xl bg-red-500 p-2 text-sm text-white shadow-[0px_0px_10px_0px_rgba(0,0,0,0.35)]"
+                    className="h-10 w-40 rounded-xl bg-green-500 p-2 text-sm text-white shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)]"
                   >
-                    Sair sem Salvar
-                  </button>
-                  <button className="h-10 w-max rounded-xl bg-green-500 p-2 text-sm text-white shadow-[0px_0px_10px_0px_rgba(0,0,0,0.35)]">
                     Salvar
                   </button>
                 </div>
@@ -452,23 +489,23 @@ export function SetAccordion({
                 >
                   <PopoverTrigger
                     asChild
-                    onMouseEnter={() => setIsImportHovered(true)}
-                    onMouseLeave={() => setIsImportHovered(false)}
+                    onMouseEnter={() => setIsSectorNameHovered(true)}
+                    onMouseLeave={() => setIsSectorNameHovered(false)}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setIsImportHovered(false);
+                      setIsSectorNameHovered(false);
                     }}
-                    onBlur={() => setIsImportHovered(false)}
+                    onBlur={() => setIsSectorNameHovered(false)}
                   >
                     <label
                       className={cn(
-                        "relative flex h-12 w-max items-center justify-start rounded-2xl pr-1",
+                        "relative flex h-12 w-40 items-center justify-start overflow-hidden rounded-2xl pr-1",
                         "bg-primary",
                       )}
                     >
                       <span
                         className={cn(
-                          "bg-primary/20 text-primary flex h-12 w-12 items-center justify-center rounded-2xl p-1 font-bold",
+                          "bg-primary/20 text-primary flex h-12 w-12 min-w-12 items-center justify-center rounded-2xl p-1 font-bold",
                           "bg-white/20 text-white",
                         )}
                       >
@@ -498,53 +535,31 @@ export function SetAccordion({
                   </PopoverContent>
                 </Popover>
               </div>
-              {[...Array(equipmentsArrayLength)]
-                .slice((currentEquipmentPage - 1) * 6, currentEquipmentPage * 6)
+              {layoutData.areas
+                ?.flatMap((area) => area.sectors || [])
+                .find((sector) => sector.localId === selectedSector?.localId)
+                ?.equipments?.slice(
+                  (currentEquipmentPage - 1) * 6,
+                  currentEquipmentPage * 6,
+                )
                 .map((item, index) => (
                   <div key={index} className="flex flex-col gap-2">
-                    <span className="text-primary text-sm">
-                      Equipamento{" "}
-                      {currentEquipmentPage > 1
-                        ? (currentEquipmentPage - 1) * 6 + index + 1
-                        : index + 1}
-                    </span>
+                    <span className="text-primary text-sm">{item.name}</span>
                     <label
-                      onClick={() =>
-                        setSelectedEquipment({
-                          name: "Equipamento X",
-                          tag: "1.1.1",
-                          type: "Tipo de Equipamento",
-                          maker: "Fabricante",
-                          model: "Modelo",
-                          year: "2023",
-                          description: "Descrição do Equipamento",
-                          photos: null,
-                          id: v4(),
-                          localId: "1.1.1",
-                          sets: null,
-                        })
-                      }
+                      onClick={() => handleSelectEquipment(item)}
                       className={cn(
                         "relative flex h-12 items-center justify-end rounded-2xl px-4",
-                        "bg-primary",
+                        item.sets ? "bg-primary" : "",
                       )}
                     >
                       <input
                         className={cn(
                           "peer transparent absolute left-0 h-full w-[calc(100%-2rem)] px-4 placeholder:text-neutral-300 focus:outline-none",
-                          "text-white placeholder:text-white",
+                          item.sets ? "text-white" : "",
                         )}
-                        placeholder="Nome do Equipamento"
-                        value={
-                          inputEquipmentValues[
-                            currentEquipmentPage > 1
-                              ? (currentEquipmentPage - 1) * 6 + index
-                              : index
-                          ] || ""
-                        }
-                        onChange={(e) =>
-                          handleInputChange(index, e.target.value)
-                        }
+                        placeholder="TAG do Equipamento"
+                        value={item.tag}
+                        readOnly
                       />
                       <Image
                         src="/icons/equipment.png"
@@ -553,23 +568,33 @@ export function SetAccordion({
                         height={200}
                         className={cn(
                           "absolute h-max w-5 object-contain transition duration-200 peer-focus:translate-x-2 peer-focus:opacity-0",
-                          "opacity-0",
+                          item.sets
+                            ? "opacity-0"
+                            : "peer-focus:translate-x-2 peer-focus:opacity-0",
                         )}
                       />
                       <Image
-                        src={"/icons/checkCheckWhite.png"}
+                        src={
+                          item.sets
+                            ? "/icons/checkCheckWhite.png"
+                            : "/icons/checkCheck.png"
+                        }
                         alt=""
                         width={200}
                         height={200}
                         className={cn(
                           "absolute h-max w-5 -translate-x-2 object-contain opacity-0 transition duration-200 peer-focus:translate-x-0 peer-focus:opacity-100",
-                          "translate-x-0 opacity-100",
+                          item.sets
+                            ? "translate-x-0 opacity-100"
+                            : "-translate-x-2 opacity-0",
                         )}
                       />
                       <div
                         className={cn(
                           "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
-                          "shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
+                          item.sets
+                            ? "shadow-[0px_2px_7px_rgba(0,0,0,0.5)]"
+                            : "",
                         )}
                       />
                     </label>
@@ -602,17 +627,19 @@ export function SetAccordion({
                       <label
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleSelectSector(item);
+                          setSelectedSector(item);
                         }}
                         className={cn(
                           "relative flex h-12 cursor-pointer items-center justify-start rounded-2xl pr-1",
-                          item.equipments && "bg-primary",
+                          item.equipments?.find((eq) => eq.sets) &&
+                            "bg-primary",
                         )}
                       >
                         <span
                           className={cn(
                             "bg-primary/20 text-primary flex h-12 w-12 items-center justify-center rounded-2xl p-1 font-bold",
-                            item.equipments && "bg-white/20 text-white",
+                            item.equipments?.find((eq) => eq.sets) &&
+                              "bg-white/20 text-white",
                           )}
                         >
                           {item.localId}
@@ -620,7 +647,8 @@ export function SetAccordion({
                         <input
                           className={cn(
                             "peer transparent absolute right-0 h-full w-[calc(100%-3rem)] px-4 placeholder:text-neutral-300 focus:outline-none",
-                            item.equipments && "text-white",
+                            item.equipments?.find((eq) => eq.sets) &&
+                              "text-white",
                           )}
                           placeholder="Nome da Área"
                           value={item.name}
@@ -630,7 +658,7 @@ export function SetAccordion({
                         <div
                           className={cn(
                             "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
-                            item.equipments &&
+                            item.equipments?.find((eq) => eq.sets) &&
                               "shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
                           )}
                         />
@@ -644,8 +672,8 @@ export function SetAccordion({
               e.stopPropagation();
               if (!selectedSector) {
                 setSelectedLayoutStep(2);
-              } else {
-                handleAddEquipment();
+              } else if (selectedSector && !selectedEquipment) {
+                setSelectedLayoutStep(3);
               }
             }}
             className={cn(

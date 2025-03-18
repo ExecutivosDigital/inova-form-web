@@ -225,23 +225,23 @@ export function SectorAccordion({
                 >
                   <PopoverTrigger
                     asChild
-                    onMouseEnter={() => setIsImportHovered(true)}
-                    onMouseLeave={() => setIsImportHovered(false)}
+                    onMouseEnter={() => setIsAreaNameHovered(true)}
+                    onMouseLeave={() => setIsAreaNameHovered(false)}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setIsImportHovered(false);
+                      setIsAreaNameHovered(false);
                     }}
-                    onBlur={() => setIsImportHovered(false)}
+                    onBlur={() => setIsAreaNameHovered(false)}
                   >
                     <label
                       className={cn(
-                        "relative flex h-12 w-max items-center justify-start rounded-2xl pr-1",
+                        "relative flex h-12 w-40 items-center justify-start overflow-hidden rounded-2xl pr-1",
                         "bg-primary",
                       )}
                     >
                       <span
                         className={cn(
-                          "bg-primary/20 text-primary flex h-12 w-12 items-center justify-center rounded-2xl p-1 font-bold",
+                          "bg-primary/20 text-primary flex h-12 w-12 min-w-12 items-center justify-center rounded-2xl p-1 font-bold",
                           "bg-white/20 text-white",
                         )}
                       >

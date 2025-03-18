@@ -1,11 +1,13 @@
 export interface CipProps {
   name: string;
+  code: string;
   id: string;
   localId: string;
 }
 
 export interface SubSetProps {
   name: string;
+  code: string;
   id: string;
   localId: string;
   cip: CipProps[] | null;

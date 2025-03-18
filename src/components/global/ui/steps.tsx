@@ -4,12 +4,12 @@ import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const stepVariants = cva(
-  " flex   break-words [&_[step-box]]:font-medium  [&_[step-box=disable]]:text-neutral-500 [&_[step-box=completed]]:text-white [&_[step-box=current]]:text-neutral-500 [&_[step-box=current]]:bg-neutral-200  ",
+  " flex   break-words [&_[step-box]]:font-bold transition-colors duration-300 [&_[step-box=disable]]:text-white [&_[step-box=completed]]:text-white [&_[step-box=current]]:text-white [&_[step-box=current]]:bg-primary  ",
   {
     variants: {
       variant: {
         default:
-          "[&_[step-bar-bg=disable]]:before:bg-default-200 [&_[step-bar-bg=current]]:before:bg-default-200 [&_[step-bar-bg=completed]]:before:bg-neutral-200 [&_[step-bar-bg=completed]]:before:rounded-full [&_[step-box=current]]:border-2 [&_[step-box=current]]:border-neutral-200 [&_[step-box=completed]]:bg-primary   [&_[step-box=disable]]:bg-neutral-200 [&_[step-box=error]]:bg-destructive [&_[step-box=error]]:text-destructive-foreground  ",
+          "[&_[step-bar-bg=disable]]:before:bg-zinc-700  transition-colors duration-300 [&_[step-bar-bg=current]]:before:bg-zinc-700 [&_[step-bar-bg=completed]]:before:bg-primary [&_[step-box=current]]:border-2 [&_[step-box=current]]:border-primary [&_[step-box=completed]]:bg-primary   [&_[step-box=disable]]:bg-zinc-700/90 [&_[step-box=error]]:bg-destructive [&_[step-box=error]]:text-destructive-foreground  ",
       },
       size: {
         sm: "[&_[step-box]]:h-5 [&_[step-box]]:w-5 [&_[step-box]]:text-[10px]",
@@ -51,6 +51,7 @@ interface StepperProps
   direction: "horizontal" | "vertical";
   current?: number;
   content?: "bottom" | "right";
+  icon?: boolean;
   alternativeLabel?: boolean;
   gap?: boolean;
   status?: "error" | "warning" | "success" | "info";
@@ -67,6 +68,7 @@ const Stepper = React.forwardRef<HTMLOListElement, StepperProps>(
       size,
       current,
       content,
+
       alternativeLabel,
       gap,
       status,
@@ -92,19 +94,19 @@ const Stepper = React.forwardRef<HTMLOListElement, StepperProps>(
           return React.cloneElement(child as React.ReactElement, {
             ...props,
             isLast,
-            activestep: activestep,
+            activestep,
             disabled: disabled && !isLast,
             count,
-            index: index,
-            current: current,
-            //...child.props ,
-            gap: gap,
-            direction: direction,
-            alternativeLabel: alternativeLabel,
-            isBeforeLast: isBeforeLast,
-            content: content,
-            status: status,
-            size: size,
+            index,
+            current,
+            // ...child.props ,
+            gap,
+            direction,
+            alternativeLabel,
+            isBeforeLast,
+            content,
+            status,
+            size,
             className: cn(stepVariants({ variant, size, content })),
           });
         })}
@@ -153,16 +155,20 @@ const Step = React.forwardRef<HTMLLIElement, StepProps>(
     },
     ref,
   ) => {
-    const getStepBarBg = (current: any, index: any) => {
+    const getStepBarBg = (current: number, index: number) => {
       if (current > index) return "completed";
       if (current < index) return "disable";
       if (current === index) return "current";
       return "";
     };
 
-    const stepBarBg = getStepBarBg(current, index);
+    const stepBarBg = getStepBarBg(current ?? 0, index ?? 0);
 
-    const getStepBox = (current: any, index: any, status: any) => {
+    const getStepBox = (
+      current: number,
+      index: number,
+      status: "error" | "warning" | "success" | "info" | undefined,
+    ) => {
       if (status === "error" && current === index) {
         return "error";
       }
@@ -172,7 +178,7 @@ const Step = React.forwardRef<HTMLLIElement, StepProps>(
       return "";
     };
 
-    const stepBox = getStepBox(current, index, status);
+    const stepBox = getStepBox(current ?? 0, index ?? 0, status);
     // Check if content is 'right'
     const isContentRight = content === "right";
     // Check if any of the specific props are present
@@ -224,13 +230,7 @@ const Step = React.forwardRef<HTMLLIElement, StepProps>(
             )}
             step-box={stepBox}
           >
-            {stepBarBg === "completed" && !icon ? (
-              <Check />
-            ) : icon ? (
-              icon
-            ) : (
-              count
-            )}
+            {stepBarBg === "completed" ? <Check /> : icon || count}
           </span>
           {isContentRight && renderChildren && (
             <div className="bg-card px-3">{children}</div>
