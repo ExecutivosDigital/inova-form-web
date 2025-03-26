@@ -237,13 +237,13 @@ export function SubSetAccordion({
     <AccordionItem value="5" onClick={() => setSelectedLayoutStep(5)}>
       <AccordionTrigger arrow>
         <div className="flex w-full items-center justify-between">
-          <div className="text-primary flex items-center gap-4 text-2xl font-bold">
+          <div className="text-primary flex items-center gap-2 text-base font-bold md:gap-4 md:text-2xl">
             <span>1.5</span>
             <div className="flex flex-col">
               <span className="leading-6">Cadastramento de Subconjunto?</span>
               <span
                 className={cn(
-                  "w-max text-sm font-normal text-neutral-500",
+                  "w-max text-xs font-normal text-neutral-500 md:text-sm",
                   selectedLayoutStep !== 5 && "hidden",
                 )}
               >
@@ -264,11 +264,11 @@ export function SubSetAccordion({
                   }}
                   onBlur={() => setIsImportHovered(false)}
                 >
-                  <div className="bg-primary flex h-10 items-center gap-2 rounded-full p-2 text-sm font-semibold text-white">
-                    <Upload />
+                  <div className="bg-primary flex h-6 items-center gap-2 rounded-full p-1 text-sm font-semibold text-white md:h-10 md:p-2">
+                    <Upload className="h-4 md:h-8" />
                   </div>
                 </PopoverTrigger>
-                <PopoverContent className="w-max p-1 text-sm">
+                <PopoverContent className="w-max bg-white p-1 text-sm">
                   <PopoverArrow className="fill-neutral-300" />
                   <span>Importar Planilhas</span>
                 </PopoverContent>
@@ -279,7 +279,7 @@ export function SubSetAccordion({
                   setSelectedLayoutStep(6);
                 }}
                 className={cn(
-                  "bg-primary flex h-10 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white",
+                  "bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4",
                   layoutData &&
                     layoutData.areas &&
                     layoutData.areas.find((area) =>
@@ -292,8 +292,8 @@ export function SubSetAccordion({
                     "pointer-events-none cursor-not-allowed opacity-50",
                 )}
               >
-                <span>Avançar 1.6</span>
-                <ArrowRight />
+                <span className="hidden md:block">Avançar 1.6</span>
+                <ArrowRight className="h-4 md:h-8" />
               </div>
             </div>
           )}
@@ -302,7 +302,7 @@ export function SubSetAccordion({
       <AccordionContent>
         <div
           className={cn(
-            "grid grid-cols-4 gap-4 border-t border-neutral-300 p-4",
+            "grid grid-cols-4 gap-2 border-t border-neutral-300 p-2 md:gap-4 md:p-4",
             selectedEquipment && "grid-cols-3",
             selectedSet && "px-0",
           )}
@@ -313,7 +313,7 @@ export function SubSetAccordion({
                 <div className="flex items-center gap-2 px-4">
                   <button
                     onClick={() => setSelectedSet(null)}
-                    className="text-primary flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-[0px_0px_10px_0px_rgba(0,0,0,0.35)]"
+                    className="text-primary flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-[0px_0px_10px_0px_rgba(0,0,0,0.35)] md:h-12 md:w-12"
                   >
                     <ChevronLeft />
                   </button>
@@ -333,13 +333,13 @@ export function SubSetAccordion({
                     >
                       <label
                         className={cn(
-                          "relative flex h-12 w-40 items-center justify-start overflow-hidden rounded-2xl pr-1",
+                          "relative flex h-10 w-32 items-center justify-start overflow-hidden rounded-2xl pr-1 md:h-12 md:w-40",
                           "bg-primary",
                         )}
                       >
                         <span
                           className={cn(
-                            "bg-primary/20 text-primary flex h-12 w-12 min-w-12 items-center justify-center rounded-2xl p-1 font-bold",
+                            "bg-primary/20 text-primary flex h-10 w-10 min-w-10 items-center justify-center rounded-2xl p-1 font-bold md:h-12 md:w-12 md:min-w-12",
                             "bg-white/20 text-white",
                           )}
                         >
@@ -347,7 +347,7 @@ export function SubSetAccordion({
                         </span>
                         <input
                           className={cn(
-                            "peer transparent h-full px-4 placeholder:text-neutral-300 focus:outline-none",
+                            "peer transparent h-full px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
                             "text-white",
                           )}
                           placeholder="Nome da Área"
@@ -392,13 +392,13 @@ export function SubSetAccordion({
                     >
                       <label
                         className={cn(
-                          "relative flex h-12 w-40 items-center justify-start overflow-hidden rounded-2xl pr-1",
+                          "relative flex h-10 w-32 items-center justify-start overflow-hidden rounded-2xl pr-1 md:h-12 md:w-40",
                           "bg-primary",
                         )}
                       >
                         <span
                           className={cn(
-                            "bg-primary/20 text-primary flex h-12 w-12 min-w-12 items-center justify-center rounded-2xl p-1 font-bold",
+                            "bg-primary/20 text-primary flex h-10 w-10 min-w-10 items-center justify-center rounded-2xl p-1 font-bold md:h-12 md:w-12 md:min-w-12",
                             "bg-white/20 text-white",
                           )}
                         >
@@ -406,7 +406,7 @@ export function SubSetAccordion({
                         </span>
                         <input
                           className={cn(
-                            "peer transparent h-full px-4 placeholder:text-neutral-300 focus:outline-none",
+                            "peer transparent h-full px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
                             "text-white",
                           )}
                           placeholder="Nome da Área"
@@ -443,13 +443,13 @@ export function SubSetAccordion({
                     >
                       <label
                         className={cn(
-                          "relative flex h-12 w-40 items-center justify-start overflow-hidden rounded-2xl pr-1",
+                          "relative flex h-10 w-32 items-center justify-start overflow-hidden rounded-2xl pr-1 md:h-12 md:w-40",
                           "bg-primary",
                         )}
                       >
                         <span
                           className={cn(
-                            "bg-primary/20 text-primary flex h-12 w-12 min-w-12 items-center justify-center rounded-2xl p-1 font-bold",
+                            "bg-primary/20 text-primary flex h-10 w-10 min-w-10 items-center justify-center rounded-2xl p-1 font-bold md:h-12 md:w-12 md:min-w-12",
                             "bg-white/20 text-white",
                           )}
                         >
@@ -457,7 +457,7 @@ export function SubSetAccordion({
                         </span>
                         <input
                           className={cn(
-                            "peer transparent h-full px-4 placeholder:text-neutral-300 focus:outline-none",
+                            "peer transparent h-full px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
                             "text-white",
                           )}
                           placeholder="Nome da Área"
@@ -484,11 +484,11 @@ export function SubSetAccordion({
                     {[...Array(subSetsArrayLength)].map((_, index) => (
                       <div
                         key={index}
-                        className="col-span-3 mb-1 flex items-end justify-between gap-4 px-4"
+                        className="col-span-3 mb-1 flex items-end justify-between gap-2 px-2 md:gap-4 md:px-4"
                       >
                         <div
                           className={cn(
-                            "text-primary flex h-12 w-12 min-w-12 items-center justify-center rounded-2xl bg-white font-bold shadow-[0px_2px_7px_rgba(0,0,0,0.15)]",
+                            "text-primary flex h-10 w-10 min-w-10 items-center justify-center rounded-2xl bg-white font-bold shadow-[0px_2px_7px_rgba(0,0,0,0.15)] md:h-12 md:w-12 md:min-w-12",
                             isSubSetFullyFilled(inputSubSetsValues[index]) &&
                               "bg-primary text-white",
                           )}
@@ -496,12 +496,12 @@ export function SubSetAccordion({
                           <span>{index + 1}.</span>
                         </div>
                         <div className="flex w-full flex-col">
-                          <span className="text-primary text-sm">
+                          <span className="text-primary text-xs md:text-sm">
                             Nome do Subconjunto
                           </span>
                           <input
                             type="text"
-                            className="h-12 w-full rounded-2xl bg-white p-2 px-4 shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] placeholder:text-neutral-300 focus:outline-none"
+                            className="h-10 w-full rounded-2xl bg-white p-2 px-2 text-xs shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] placeholder:text-neutral-300 focus:outline-none md:h-12 md:px-4 md:text-sm"
                             placeholder="Identificação do Subconjunto"
                             onChange={(e) =>
                               handleInputChange(index, "name", e.target.value)
@@ -510,12 +510,12 @@ export function SubSetAccordion({
                           />
                         </div>
                         <div className="flex w-full flex-col">
-                          <span className="text-primary text-sm">
+                          <span className="text-primary text-xs md:text-sm">
                             Código do Subconjunto
                           </span>
                           <input
                             type="text"
-                            className="h-12 w-full rounded-2xl bg-white p-2 px-4 shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] placeholder:text-neutral-300 focus:outline-none"
+                            className="h-10 w-full rounded-2xl bg-white p-2 px-2 text-xs shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] placeholder:text-neutral-300 focus:outline-none md:h-12 md:px-4 md:text-sm"
                             placeholder="Código do Subconjunto"
                             onChange={(e) =>
                               handleInputChange(index, "code", e.target.value)
@@ -527,17 +527,17 @@ export function SubSetAccordion({
                     ))}
                   </ScrollArea>
                 </div>
-                <div className="flex w-full items-center justify-between px-4">
+                <div className="flex w-full items-center justify-between gap-2 px-2 md:px-4">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       handleAddSubSet();
                     }}
                     className={cn(
-                      "bg-primary h-12 w-max self-end rounded-full px-4 font-bold text-white",
+                      "bg-primary h-10 w-max self-end rounded-full px-2 font-bold text-white md:h-12 md:px-4",
                     )}
                   >
-                    + Cadastrar outro Subconjunto
+                    + Cadastrar Subconjunto
                   </button>
                   <button
                     onClick={() => setSelectedSet(null)}
@@ -553,7 +553,7 @@ export function SubSetAccordion({
               <div className="col-span-3 flex items-center gap-2">
                 <button
                   onClick={() => setSelectedEquipment(null)}
-                  className="text-primary flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-[0px_0px_10px_0px_rgba(0,0,0,0.35)]"
+                  className="text-primary flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-[0px_0px_10px_0px_rgba(0,0,0,0.35)] md:h-12 md:w-12"
                 >
                   <ChevronLeft />
                 </button>
@@ -573,13 +573,13 @@ export function SubSetAccordion({
                   >
                     <label
                       className={cn(
-                        "relative flex h-12 w-40 items-center justify-start overflow-hidden rounded-2xl pr-1",
+                        "relative flex h-10 w-32 items-center justify-start overflow-hidden rounded-2xl pr-1 md:h-12 md:w-40",
                         "bg-primary",
                       )}
                     >
                       <span
                         className={cn(
-                          "bg-primary/20 text-primary flex h-12 w-12 min-w-12 items-center justify-center rounded-2xl p-1 font-bold",
+                          "bg-primary/20 text-primary flex h-10 w-10 min-w-10 items-center justify-center rounded-2xl p-1 font-bold md:h-12 md:w-12 md:min-w-12",
                           "bg-white/20 text-white",
                         )}
                       >
@@ -587,7 +587,7 @@ export function SubSetAccordion({
                       </span>
                       <input
                         className={cn(
-                          "peer transparent h-full px-4 placeholder:text-neutral-300 focus:outline-none",
+                          "peer transparent h-full px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
                           "text-white",
                         )}
                         placeholder="Nome da Área"
@@ -632,13 +632,13 @@ export function SubSetAccordion({
                   >
                     <label
                       className={cn(
-                        "relative flex h-12 w-40 items-center justify-start overflow-hidden rounded-2xl pr-1",
+                        "relative flex h-10 w-32 items-center justify-start overflow-hidden rounded-2xl pr-1 md:h-12 md:w-40",
                         "bg-primary",
                       )}
                     >
                       <span
                         className={cn(
-                          "bg-primary/20 text-primary flex h-12 w-12 min-w-12 items-center justify-center rounded-2xl p-1 font-bold",
+                          "bg-primary/20 text-primary flex h-10 w-10 min-w-10 items-center justify-center rounded-2xl p-1 font-bold md:h-12 md:w-12 md:min-w-12",
                           "bg-white/20 text-white",
                         )}
                       >
@@ -646,7 +646,7 @@ export function SubSetAccordion({
                       </span>
                       <input
                         className={cn(
-                          "peer transparent h-full px-4 placeholder:text-neutral-300 focus:outline-none",
+                          "peer transparent h-full px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
                           "text-white",
                         )}
                         placeholder="Nome da Área"
@@ -674,17 +674,19 @@ export function SubSetAccordion({
                 .find((eq) => eq.localId === selectedEquipment.localId)
                 ?.sets?.map((item, index) => (
                   <div key={index} className="flex flex-col gap-2">
-                    <span className="text-primary text-sm">{item.name}</span>
+                    <span className="text-primary text-xs md:text-sm">
+                      {item.name}
+                    </span>
                     <label
                       onClick={() => handleSelectSet(item)}
                       className={cn(
-                        "relative flex h-12 items-center justify-end rounded-2xl px-4",
+                        "relative flex h-10 items-center justify-end rounded-2xl px-2 md:h-12 md:px-4",
                         item.subSets ? "bg-primary" : "",
                       )}
                     >
                       <input
                         className={cn(
-                          "peer transparent absolute left-0 h-full w-[calc(100%-2rem)] px-4 placeholder:text-neutral-300 focus:outline-none",
+                          "peer transparent absolute left-0 h-full w-[calc(100%-2rem)] px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
                           item.subSets ? "text-white" : "",
                         )}
                         placeholder="TAG do Equipamento"
@@ -772,13 +774,13 @@ export function SubSetAccordion({
                           setSelectedEquipment(item);
                         }}
                         className={cn(
-                          "relative flex h-12 cursor-pointer items-center justify-start rounded-2xl pr-1",
+                          "relative flex h-10 cursor-pointer items-center justify-start rounded-2xl md:h-12",
                           item.sets?.find((set) => set.subSets) && "bg-primary",
                         )}
                       >
                         <span
                           className={cn(
-                            "bg-primary/20 text-primary flex h-12 w-12 items-center justify-center rounded-2xl p-1 font-bold",
+                            "bg-primary/20 text-primary flex h-10 w-10 items-center justify-center rounded-2xl p-1 font-bold md:h-12 md:w-12",
                             item.sets?.find((set) => set.subSets) &&
                               "bg-white/20 text-white",
                           )}
@@ -787,7 +789,7 @@ export function SubSetAccordion({
                         </span>
                         <input
                           className={cn(
-                            "peer transparent absolute right-0 h-full w-[calc(100%-3rem)] px-4 placeholder:text-neutral-300 focus:outline-none",
+                            "peer transparent absolute right-0 h-full w-[calc(100%-2.5rem)] px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:w-[calc(100%-3rem)] md:px-4 md:text-sm",
                             item.sets?.find((set) => set.subSets) &&
                               "text-white",
                           )}
@@ -818,20 +820,17 @@ export function SubSetAccordion({
               }
             }}
             className={cn(
-              "bg-primary h-12 w-full self-end rounded-full px-4 font-bold text-white",
+              "bg-primary flex h-10 w-full items-center justify-center gap-1 self-end rounded-full px-1 font-bold text-white md:px-4",
               selectedSet && "hidden",
             )}
           >
-            + Cadastrar{" "}
-            {selectedEquipment ? "outro Conjunto" : "outro Equipamento"}
+            <p className="text-xs md:text-sm">+</p>
+            <p className="hidden md:block">
+              Cadastrar {selectedEquipment ? " Conjunto" : " Equipamento"}
+            </p>
           </button>
         </div>
-        <div
-          className={cn(
-            "flex w-full items-center justify-end",
-            selectedSet && "hidden",
-          )}
-        >
+        <div className={cn(selectedSet && "hidden")}>
           <CustomPagination
             currentPage={currentEquipmentPage}
             setCurrentPage={setCurrentEquipmentPage}

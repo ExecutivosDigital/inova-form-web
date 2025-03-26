@@ -55,7 +55,7 @@ export const CustomPagination = ({
 
   return (
     <Pagination className="flex w-full items-center justify-end">
-      <PaginationContent>
+      <PaginationContent className="flex gap-4">
         <PaginationPrevious
           onClick={handleFirst}
           className="hover:bg-primary/40 cursor-pointer hover:text-white"

@@ -93,13 +93,13 @@ export function AreaAccordion({
     <AccordionItem value="1" onClick={() => setSelectedLayoutStep(1)}>
       <AccordionTrigger arrow>
         <div className="flex w-full items-center justify-between">
-          <div className="text-primary flex items-center gap-4 text-2xl font-bold">
+          <div className="text-primary flex items-center gap-2 text-base font-bold md:gap-4 md:text-2xl">
             <span>1.1</span>
             <div className="flex flex-col">
               <span className="leading-6">Cadastramento de Áreas</span>
               <span
                 className={cn(
-                  "w-max text-sm font-normal text-neutral-500",
+                  "w-max text-xs font-normal text-neutral-500 md:text-sm",
                   selectedLayoutStep !== 1 && "hidden",
                 )}
               >
@@ -120,11 +120,11 @@ export function AreaAccordion({
                   }}
                   onBlur={() => setIsImportHovered(false)}
                 >
-                  <div className="bg-primary flex h-10 items-center gap-2 rounded-full p-2 text-sm font-semibold text-white">
-                    <Upload />
+                  <div className="bg-primary flex h-6 items-center gap-2 rounded-full p-1 text-sm font-semibold text-white md:h-10 md:p-2">
+                    <Upload className="h-4 md:h-8" />
                   </div>
                 </PopoverTrigger>
-                <PopoverContent className="w-max p-1 text-sm">
+                <PopoverContent className="w-max bg-white p-1 text-sm">
                   <PopoverArrow className="fill-neutral-300" />
                   <span>Importar Planilhas</span>
                 </PopoverContent>
@@ -135,21 +135,21 @@ export function AreaAccordion({
                   setSelectedLayoutStep(2);
                 }}
                 className={cn(
-                  "bg-primary flex h-10 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white",
+                  "bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4",
                   layoutData &&
                     !layoutData.areas &&
                     "pointer-events-none cursor-not-allowed opacity-50",
                 )}
               >
-                <span>Avançar 1.2</span>
-                <ArrowRight />
+                <span className="hidden md:block">Avançar 1.2</span>
+                <ArrowRight className="h-4 md:h-8" />
               </div>
             </div>
           )}
         </div>
       </AccordionTrigger>
       <AccordionContent>
-        <div className="grid grid-cols-3 gap-4 border-t border-neutral-300 p-4">
+        <div className="grid grid-cols-3 gap-2 border-t border-neutral-300 p-2 md:gap-4 md:p-4">
           {[...Array(areasArrayLength)]
             .slice((currentPage - 1) * 6, currentPage * 6)
             .map((item, index) => (
@@ -162,7 +162,7 @@ export function AreaAccordion({
                 </span>
                 <label
                   className={cn(
-                    "relative flex h-12 items-center justify-end rounded-2xl px-4",
+                    "relative flex h-12 items-center justify-end rounded-2xl px-2 md:px-4",
                     inputValues[
                       currentPage > 1
                         ? (currentPage - 1) * 6 + index + 1
@@ -174,7 +174,7 @@ export function AreaAccordion({
                 >
                   <input
                     className={cn(
-                      "peer transparent absolute left-0 h-full w-[calc(100%-2rem)] px-4 placeholder:text-neutral-300 focus:outline-none",
+                      "peer transparent absolute left-0 h-full w-[calc(100%-2rem)] px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
                       inputValues[
                         currentPage > 1
                           ? (currentPage - 1) * 6 + index + 1
@@ -250,18 +250,17 @@ export function AreaAccordion({
             ))}
           <button
             onClick={handleAddArea}
-            className="bg-primary h-12 w-full self-end rounded-full px-4 font-bold text-white"
+            className="bg-primary flex h-12 w-full items-center gap-1 self-end rounded-full px-2 font-bold text-white md:px-4"
           >
-            + Cadastrar outra Área
+            <p className="text-xs md:text-sm">+ Cadastrar </p>
+            <p className="hidden md:block"> Área</p>
           </button>
         </div>
-        <div className="flex w-full items-center justify-end">
-          <CustomPagination
-            currentPage={currentPage}
-            setCurrentPage={setCurrentPage}
-            pages={areasPages}
-          />
-        </div>
+        <CustomPagination
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage}
+          pages={areasPages}
+        />
       </AccordionContent>
     </AccordionItem>
   );

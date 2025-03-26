@@ -147,13 +147,13 @@ export function SectorAccordion({
     <AccordionItem value="2" onClick={() => setSelectedLayoutStep(2)}>
       <AccordionTrigger arrow>
         <div className="flex w-full items-center justify-between">
-          <div className="text-primary flex items-center gap-4 text-2xl font-bold">
+          <div className="text-primary flex items-center gap-2 text-base font-bold md:gap-4 md:text-2xl">
             <span>1.2</span>
             <div className="flex flex-col">
               <span className="leading-6">Cadastramento de Setores</span>
               <span
                 className={cn(
-                  "w-max text-sm font-normal text-neutral-500",
+                  "w-max text-xs font-normal text-neutral-500 md:text-sm",
                   selectedLayoutStep !== 2 && "hidden",
                 )}
               >
@@ -174,11 +174,11 @@ export function SectorAccordion({
                   }}
                   onBlur={() => setIsImportHovered(false)}
                 >
-                  <div className="bg-primary flex h-10 items-center gap-2 rounded-full p-2 text-sm font-semibold text-white">
-                    <Upload />
+                  <div className="bg-primary flex h-6 items-center gap-2 rounded-full p-1 text-sm font-semibold text-white md:h-10 md:p-2">
+                    <Upload className="h-4 md:h-8" />
                   </div>
                 </PopoverTrigger>
-                <PopoverContent className="w-max p-1 text-sm">
+                <PopoverContent className="w-max bg-white p-1 text-sm">
                   <PopoverArrow className="fill-neutral-300" />
                   <span>Importar Planilhas</span>
                 </PopoverContent>
@@ -189,15 +189,15 @@ export function SectorAccordion({
                   setSelectedLayoutStep(3);
                 }}
                 className={cn(
-                  "bg-primary flex h-10 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white",
+                  "bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4",
                   layoutData &&
                     layoutData.areas &&
                     layoutData.areas.find((area) => !area.sectors) &&
                     "pointer-events-none cursor-not-allowed opacity-50",
                 )}
               >
-                <span>Avançar 1.3</span>
-                <ArrowRight />
+                <span className="hidden md:block">Avançar 1.3</span>
+                <ArrowRight className="h-4 md:h-8" />
               </div>
             </div>
           )}
@@ -206,7 +206,7 @@ export function SectorAccordion({
       <AccordionContent>
         <div
           className={cn(
-            "grid grid-cols-4 gap-4 border-t border-neutral-300 p-4",
+            "grid grid-cols-4 gap-2 border-t border-neutral-300 p-2 md:gap-4 md:p-4",
             selectedArea && "grid-cols-3",
           )}
         >
@@ -215,7 +215,7 @@ export function SectorAccordion({
               <div className="col-span-3 flex items-center gap-2">
                 <button
                   onClick={() => setSelectedArea(null)}
-                  className="text-primary flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-[0px_0px_10px_0px_rgba(0,0,0,0.35)]"
+                  className="text-primary flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-[0px_0px_10px_0px_rgba(0,0,0,0.35)] md:h-12 md:w-12"
                 >
                   <ChevronLeft />
                 </button>
@@ -235,13 +235,13 @@ export function SectorAccordion({
                   >
                     <label
                       className={cn(
-                        "relative flex h-12 w-40 items-center justify-start overflow-hidden rounded-2xl pr-1",
+                        "relative flex h-10 w-32 items-center justify-start overflow-hidden rounded-2xl pr-1 md:h-12 md:w-40",
                         "bg-primary",
                       )}
                     >
                       <span
                         className={cn(
-                          "bg-primary/20 text-primary flex h-12 w-12 min-w-12 items-center justify-center rounded-2xl p-1 font-bold",
+                          "bg-primary/20 text-primary flex h-10 w-10 min-w-10 items-center justify-center rounded-2xl p-1 font-bold md:h-12 md:w-12 md:min-w-12",
                           "bg-white/20 text-white",
                         )}
                       >
@@ -249,7 +249,7 @@ export function SectorAccordion({
                       </span>
                       <input
                         className={cn(
-                          "peer transparent h-full px-4 placeholder:text-neutral-300 focus:outline-none",
+                          "peer transparent h-full px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
                           "text-white",
                         )}
                         placeholder="Nome da Área"
@@ -265,7 +265,7 @@ export function SectorAccordion({
                       />
                     </label>
                   </PopoverTrigger>
-                  <PopoverContent className="w-max max-w-40 p-1 text-sm break-words">
+                  <PopoverContent className="w-max max-w-40 bg-white p-1 text-sm break-words">
                     <PopoverArrow className="fill-neutral-300" />
                     <span>{selectedArea.name}</span>
                   </PopoverContent>
@@ -283,7 +283,7 @@ export function SectorAccordion({
                     </span>
                     <label
                       className={cn(
-                        "relative flex h-12 items-center justify-end rounded-2xl px-4",
+                        "relative flex h-10 items-center justify-end rounded-2xl px-2 md:h-12 md:px-4",
                         inputSectorValues[
                           currentSectorPage > 1
                             ? (currentSectorPage - 1) * 6 + index + 1
@@ -295,7 +295,7 @@ export function SectorAccordion({
                     >
                       <input
                         className={cn(
-                          "peer transparent absolute left-0 h-full w-[calc(100%-2rem)] px-4 placeholder:text-neutral-300 focus:outline-none",
+                          "peer transparent absolute left-0 h-full w-[calc(100%-2rem)] px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
                           inputSectorValues[
                             currentSectorPage > 1
                               ? (currentSectorPage - 1) * 6 + index + 1
@@ -384,13 +384,13 @@ export function SectorAccordion({
                       handleSelectArea(item);
                     }}
                     className={cn(
-                      "relative flex h-12 cursor-pointer items-center justify-start rounded-2xl px-1",
+                      "relative flex h-10 cursor-pointer items-center justify-start rounded-2xl px-1 md:h-12",
                       item.sectors && "bg-primary",
                     )}
                   >
                     <span
                       className={cn(
-                        "bg-primary/20 text-primary flex h-10 w-10 items-center justify-center rounded-full p-1 font-bold",
+                        "bg-primary/20 text-primary flex h-6 w-6 items-center justify-center rounded-full p-1 font-bold md:h-10 md:w-10",
                         item.sectors && "bg-white/20 text-white",
                       )}
                     >
@@ -398,7 +398,7 @@ export function SectorAccordion({
                     </span>
                     <input
                       className={cn(
-                        "peer transparent absolute right-0 h-full w-[calc(100%-3rem)] px-4 placeholder:text-neutral-300 focus:outline-none",
+                        "peer transparent absolute right-0 h-full w-[calc(100%-1.5rem)] px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:w-[calc(100%-3rem)] md:px-4 md:text-sm",
                         item.sectors && "text-white",
                       )}
                       placeholder="Nome da Área"
@@ -425,20 +425,22 @@ export function SectorAccordion({
                 handleAddSector();
               }
             }}
-            className="bg-primary h-12 w-full self-end rounded-full px-4 font-bold text-white"
+            className="bg-primary flex h-10 w-full items-center justify-center gap-1 self-end rounded-full px-1 font-bold text-white md:px-4"
           >
-            + Cadastrar {selectedArea ? "outro Setor" : "outra Área"}
+            <p className="text-xs md:text-sm">+</p>
+            <p className="hidden md:block">
+              Cadastrar {""}
+              {selectedArea ? " Setor" : " Área"}
+            </p>
           </button>
         </div>
-        <div className="flex w-full items-center justify-end">
-          <CustomPagination
-            currentPage={selectedArea ? currentSectorPage : currentAreaPage}
-            setCurrentPage={
-              selectedArea ? setCurrentSectorPage : setCurrentAreaPage
-            }
-            pages={selectedArea ? sectorsPages : areasPages}
-          />
-        </div>
+        <CustomPagination
+          currentPage={selectedArea ? currentSectorPage : currentAreaPage}
+          setCurrentPage={
+            selectedArea ? setCurrentSectorPage : setCurrentAreaPage
+          }
+          pages={selectedArea ? sectorsPages : areasPages}
+        />
       </AccordionContent>
     </AccordionItem>
   );
