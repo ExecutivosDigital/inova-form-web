@@ -1,7 +1,11 @@
+"use client";
 import { Card } from "@/components/global/Card";
 import { Step, Stepper } from "@/components/global/ui/steps";
-import Image from "next/image";
+import { useLayoutContext } from "@/context/LayoutContext";
+import { CheckCheck } from "lucide-react";
+
 export function LayoutHeader() {
+  const { selectedLayoutStep } = useLayoutContext();
   const steps: { label: string; icon: React.ReactNode }[] = [
     {
       label: "Cadastramento de Áreas",
@@ -26,13 +30,14 @@ export function LayoutHeader() {
     {
       label: "Cadastramento de CIP - Código Identificador",
       icon: (
-        <Image
-          src="/icons/checkCheck.png"
-          alt=""
-          width={200}
-          height={200}
-          className="h-max w-5 object-contain"
-        />
+        <CheckCheck className="h-max w-5 object-contain" />
+        // <Image
+        //   src="/icons/checkCheck.png"
+        //   alt=""
+        //   width={200}
+        //   height={200}
+        //   className="h-max w-5 object-contain"
+        // />
       ),
     },
   ];
@@ -48,7 +53,7 @@ export function LayoutHeader() {
       <div className="flex flex-col gap-4">
         <Card>
           <span>Etapas do Cadastramento</span>
-          <Stepper current={1} gap direction="horizontal">
+          <Stepper current={selectedLayoutStep - 1} gap direction="horizontal">
             {steps?.map((label, index) => (
               <Step key={index} icon={label.icon} />
             ))}

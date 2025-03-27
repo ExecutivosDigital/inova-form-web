@@ -1,8 +1,7 @@
 "use client";
 
 import { LayoutTypeProps } from "@/@types/LayoutTypes";
-import { LayoutStaticData1 } from "@/mock/areas";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useState } from "react";
 
 interface LayoutContextProps {
   selectedLayoutStep: number;

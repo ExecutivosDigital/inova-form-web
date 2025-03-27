@@ -9,7 +9,7 @@ const stepVariants = cva(
     variants: {
       variant: {
         default:
-          "[&_[step-bar-bg=disable]]:before:bg-zinc-700  transition-colors duration-300 [&_[step-bar-bg=current]]:before:bg-zinc-700 [&_[step-bar-bg=completed]]:before:bg-primary [&_[step-box=current]]:border-2 [&_[step-box=current]]:border-primary [&_[step-box=completed]]:bg-primary   [&_[step-box=disable]]:bg-zinc-700/90 [&_[step-box=error]]:bg-destructive [&_[step-box=error]]:text-destructive-foreground  ",
+          "[&_[step-bar-bg=disable]]:before:bg-zinc-300  transition-colors duration-300 [&_[step-bar-bg=current]]:before:bg-zinc-300 [&_[step-bar-bg=completed]]:before:bg-primary [&_[step-box=current]]:border-2 [&_[step-box=current]]:border-primary [&_[step-box=completed]]:bg-primary   [&_[step-box=disable]]:bg-zinc-300/90 [&_[step-box=error]]:bg-destructive [&_[step-box=error]]:text-destructive-foreground  ",
       },
       size: {
         sm: "[&_[step-box]]:h-5 [&_[step-box]]:w-5 [&_[step-box]]:text-[10px]",
@@ -78,7 +78,6 @@ const Stepper = React.forwardRef<HTMLOListElement, StepperProps>(
     {
       className,
       children,
-      activestep,
       direction,
       disabled,
       variant,
@@ -109,7 +108,7 @@ const Stepper = React.forwardRef<HTMLOListElement, StepperProps>(
           const isBeforeLast = index === childItem.length - 2;
           const count = index + 1;
           const stepChild = child as React.ReactElement<StepProps>;
-          const { children: childChildren, ...childProps } = stepChild.props;
+          const { ...childProps } = stepChild.props;
           return React.cloneElement(stepChild, {
             ...childProps, // Spread only the child's own props
             isLast,
