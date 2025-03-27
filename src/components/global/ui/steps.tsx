@@ -56,6 +56,23 @@ interface StepperProps
   gap?: boolean;
   status?: "error" | "warning" | "success" | "info";
 }
+interface StepProps
+  extends React.HTMLAttributes<HTMLLIElement>,
+    VariantProps<typeof stepVariants> {
+  children?: React.ReactNode;
+  isLast?: boolean;
+  count?: number;
+  disabled?: boolean;
+  current?: number;
+  index?: number;
+  icon?: boolean | React.ReactNode;
+  gap?: boolean;
+  direction?: "horizontal" | "vertical";
+  alternativeLabel?: boolean;
+  isBeforeLast?: boolean;
+  status?: "error" | "warning" | "success" | "info";
+  content?: "bottom" | "right";
+}
 const Stepper = React.forwardRef<HTMLOListElement, StepperProps>(
   (
     {
@@ -91,15 +108,15 @@ const Stepper = React.forwardRef<HTMLOListElement, StepperProps>(
           const isLast = index === childItem.length - 1;
           const isBeforeLast = index === childItem.length - 2;
           const count = index + 1;
-          return React.cloneElement(child as React.ReactElement, {
-            ...props,
+          const stepChild = child as React.ReactElement<StepProps>;
+          const { children: childChildren, ...childProps } = stepChild.props;
+          return React.cloneElement(stepChild, {
+            ...childProps, // Spread only the child's own props
             isLast,
-            activestep,
             disabled: disabled && !isLast,
             count,
             index,
             current,
-            // ...child.props ,
             gap,
             direction,
             alternativeLabel,
@@ -116,23 +133,6 @@ const Stepper = React.forwardRef<HTMLOListElement, StepperProps>(
 );
 Stepper.displayName = "Stepper";
 
-interface StepProps
-  extends React.HTMLAttributes<HTMLLIElement>,
-    VariantProps<typeof stepVariants> {
-  children?: React.ReactNode;
-
-  isLast?: boolean;
-  count?: number;
-  current?: number;
-  index?: number;
-  icon?: boolean | React.ReactNode;
-  gap?: boolean;
-  direction?: "horizontal" | "vertical";
-  alternativeLabel?: boolean;
-  isBeforeLast?: boolean;
-  status?: "error" | "warning" | "success" | "info";
-  content?: "bottom" | "right";
-}
 const Step = React.forwardRef<HTMLLIElement, StepProps>(
   (
     {
