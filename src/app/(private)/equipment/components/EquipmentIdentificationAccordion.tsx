@@ -32,16 +32,17 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { v4 } from "uuid";
 
-interface EquipmentAccordionProps {
-  selectedLayoutStep: number;
-  setSelectedLayoutStep: React.Dispatch<React.SetStateAction<number>>;
+interface EquipmentIdentificationAccordionProps {
+  selectedEquipmentStep: number;
+  setSelectedEquipmentStep: React.Dispatch<React.SetStateAction<number>>;
 }
 
-export function EquipmentAccordion({
-  selectedLayoutStep,
-  setSelectedLayoutStep,
-}: EquipmentAccordionProps) {
+export function EquipmentIdentificationAccordion({
+  selectedEquipmentStep,
+  setSelectedEquipmentStep,
+}: EquipmentIdentificationAccordionProps) {
   const { layoutData, setLayoutData } = useLayoutContext();
+
   const [isImportHovered, setIsImportHovered] = useState(false);
   const [selectedSector, setSelectedSector] = useState<SectorProps | null>(
     null,
@@ -238,24 +239,24 @@ export function EquipmentAccordion({
   }, [layoutData.areas]);
 
   return (
-    <AccordionItem value="3" onClick={() => setSelectedLayoutStep(3)}>
+    <AccordionItem value="1" onClick={() => setSelectedEquipmentStep(1)}>
       <AccordionTrigger arrow>
         <div className="flex w-full items-center justify-between">
           <div className="text-primary flex items-center gap-2 text-base font-bold md:gap-4 md:text-2xl">
-            <span>1.3</span>
+            <span>1.1</span>
             <div className="flex flex-col">
-              <span className="leading-6">Cadastramento de Equipamentos</span>
+              <span className="leading-6">Identificação do Equipamentos</span>
               <span
                 className={cn(
                   "w-max text-xs font-normal text-neutral-500 md:text-sm",
-                  selectedLayoutStep !== 3 && "hidden",
+                  selectedEquipmentStep !== 3 && "hidden",
                 )}
               >
                 O que é um Equipamento? Explicitar
               </span>
             </div>
           </div>
-          {selectedLayoutStep === 3 && (
+          {selectedEquipmentStep === 1 && (
             <div className="flex items-center gap-4">
               <Popover open={isImportHovered} onOpenChange={setIsImportHovered}>
                 <PopoverTrigger
@@ -280,7 +281,7 @@ export function EquipmentAccordion({
               <div
                 onClick={(e) => {
                   e.stopPropagation();
-                  setSelectedLayoutStep(4);
+                  setSelectedEquipmentStep(2);
                 }}
                 className={cn(
                   "bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4",
@@ -292,7 +293,7 @@ export function EquipmentAccordion({
                     "pointer-events-none cursor-not-allowed opacity-50",
                 )}
               >
-                <span className="hidden md:block">Avançar 1.4</span>
+                <span className="hidden md:block">Avançar 1.2</span>
                 <ArrowRight className="h-4 md:h-8" />
               </div>
             </div>
@@ -783,7 +784,7 @@ export function EquipmentAccordion({
             onClick={(e) => {
               e.stopPropagation();
               if (!selectedSector) {
-                setSelectedLayoutStep(2);
+                setSelectedEquipmentStep(2);
               } else {
                 handleAddEquipment();
               }

@@ -33,6 +33,15 @@ export interface EquipmentsProps {
   id: string;
   localId: string;
   sets: SetProps[] | null;
+  initialRotation?: number;
+  finalRotation?: number;
+  lubrication?: string;
+  power?: number;
+  operationTemperature?: number;
+  mainComponent?: string;
+  RPM?: number;
+  innerDiameter?: number;
+  DN?: number;
 }
 
 export interface SectorProps {

@@ -68,7 +68,7 @@ export function CipAccordion({
     field: keyof SubSetProps, // Now handling SubSetProps
     value: string,
   ) => {
-    console.log("index: ", index, "field: ", field, "value: ", value);
+    console.log(index, field, value);
   };
 
   const isCipFullyFilled = (cip: CipProps) => {

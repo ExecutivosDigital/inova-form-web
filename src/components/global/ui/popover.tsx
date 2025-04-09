@@ -1,5 +1,5 @@
-import * as React from "react";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
+import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -44,6 +44,7 @@ const CustomPopover: React.FC<CustomPopoverProps> = ({
 }) => {
   const popoverRef = React.useRef<HTMLDivElement>(null);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleClickOutside = (event: any) => {
     if (
       popoverRef.current &&
@@ -82,10 +83,10 @@ const CustomPopover: React.FC<CustomPopoverProps> = ({
 CustomPopover.displayName = "CustomPopover";
 
 export {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-  PopoverClose,
   CustomPopover,
+  Popover,
   PopoverArrow,
+  PopoverClose,
+  PopoverContent,
+  PopoverTrigger,
 };

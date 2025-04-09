@@ -1,7 +1,8 @@
 "use client";
 
 import { LayoutTypeProps } from "@/@types/LayoutTypes";
-import { createContext, useContext, useState } from "react";
+import { LayoutStaticData } from "@/mock/areas";
+import { createContext, useContext, useEffect, useState } from "react";
 
 interface LayoutContextProps {
   selectedLayoutStep: number;
@@ -25,13 +26,11 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
   });
   const [cipCount, setCipCount] = useState(1);
 
-  console.log("layoutData: ", layoutData);
-
-  // useEffect(() => {
-  //   setLayoutData({
-  //     areas: LayoutStaticData1,
-  //   });
-  // }, []);
+  useEffect(() => {
+    setLayoutData({
+      areas: LayoutStaticData,
+    });
+  }, []);
 
   return (
     <LayoutContext.Provider
