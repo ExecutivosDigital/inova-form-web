@@ -40,11 +40,6 @@ interface EquipmentAccordionProps {
   setSelectedLayoutStep: React.Dispatch<React.SetStateAction<number>>;
 }
 
-interface FilesProps {
-  url: string;
-  fullUrl: string;
-}
-
 export function EquipmentAccordion({
   selectedLayoutStep,
   setSelectedLayoutStep,
@@ -84,7 +79,6 @@ export function EquipmentAccordion({
   );
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
-  const [files, setFiles] = useState<FilesProps[]>([]);
 
   const handleAddEquipment = () => {
     setEquipmentsArrayLength((prevLength) => prevLength + 1);
@@ -230,7 +224,6 @@ export function EquipmentAccordion({
     setIsUploadingFile(true);
 
     const response = await PostAPI("/file", formData, true);
-    console.log("response: ", response);
 
     if (
       response &&
@@ -313,8 +306,6 @@ export function EquipmentAccordion({
     }
   }
 
-  console.log("files: ", files);
-
   async function HandleCreateEquipment(newEquipments?: EquipmentsProps[]) {
     // If no new equipments are provided, get them by flattening the equipments from all sectors in all areas.
     const equipmentsToSend =
@@ -359,7 +350,6 @@ export function EquipmentAccordion({
       },
       true,
     );
-    console.log("newEquipmentResponse: ", newEquipmentResponse);
     if (newEquipmentResponse.status === 200) {
       toast.success("Equipamentos cadastrados com sucesso");
       await GetEquipments(); // re-fetch areas from the API
@@ -422,6 +412,32 @@ export function EquipmentAccordion({
       setSectorsPages(Math.ceil(layoutData.areas.length / 12));
     }
   }, [layoutData.areas]);
+
+  const equipmentHasPhotos = (() => {
+    if (!selectedSector || selectedEquipment === null || !layoutData.areas)
+      return false;
+
+    // Look through each area to find the selected sector
+    for (const area of layoutData.areas) {
+      if (area.sectors) {
+        const matchingSector = area.sectors.find(
+          (sec) => sec.id === selectedSector.id,
+        );
+        if (matchingSector) {
+          // Compute the full equipment position.
+          // (We assume that selectedEquipment is an index and equipment positions were set as `${sector.position}.${index+1}`)
+          const fullposition = `${selectedSector.position}.${selectedEquipment + 1}`;
+          const equipment = matchingSector.equipments?.find(
+            (eq) => eq.position === fullposition,
+          );
+          return Boolean(
+            equipment && equipment.photos && equipment.photos.length > 0,
+          );
+        }
+      }
+    }
+    return false;
+  })();
 
   return (
     <AccordionItem value="3" onClick={() => setSelectedLayoutStep(3)}>
@@ -581,7 +597,7 @@ export function EquipmentAccordion({
                   disabled={isUploadingFile}
                   className={cn(
                     "text-primary relative flex h-10 items-center gap-2 rounded-lg border border-neutral-200 px-2 py-2 text-xs font-semibold transition duration-300 md:h-12 md:px-4",
-                    files.length > 0 &&
+                    equipmentHasPhotos &&
                       "bg-primary border-transparent text-white",
                   )}
                 >
@@ -600,7 +616,7 @@ export function EquipmentAccordion({
                   />
                   {isUploadingFile ? (
                     <Loader2 className="w-4 animate-spin" />
-                  ) : files.length > 0 ? (
+                  ) : equipmentHasPhotos ? (
                     "Fotos Inseridas"
                   ) : (
                     "Fotos do Equipamento"
@@ -766,7 +782,6 @@ export function EquipmentAccordion({
                   <button
                     onClick={() => {
                       setSelectedEquipment(null);
-                      setFiles([]);
                     }}
                     className="h-10 w-full rounded-xl bg-green-500 p-2 text-sm text-white shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] md:w-2/5"
                   >
