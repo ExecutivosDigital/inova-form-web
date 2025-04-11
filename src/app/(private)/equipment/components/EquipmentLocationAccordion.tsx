@@ -196,7 +196,7 @@ export function EquipmentLocationAccordion({
                             "bg-white/20 text-white",
                           )}
                         >
-                          {selectedSector?.localId}
+                          {selectedSector?.position}
                         </span>
                         <input
                           className={cn(
@@ -247,7 +247,7 @@ export function EquipmentLocationAccordion({
                             "bg-white/20 text-white",
                           )}
                         >
-                          {selectedEquipment?.localId}
+                          {selectedEquipment?.position}
                         </span>
                         <input
                           className={cn(
@@ -291,7 +291,7 @@ export function EquipmentLocationAccordion({
                       Number(
                         equipmentData
                           .find((eq) => eq.id === selectedEquipment.id)
-                          ?.localId.split(".")[2],
+                          ?.position.split(".")[2],
                       ) - 1,
                       "position",
                       e.target.value,
@@ -328,7 +328,7 @@ export function EquipmentLocationAccordion({
                           Number(
                             equipmentData
                               .find((eq) => eq.id === selectedEquipment.id)
-                              ?.localId.split(".")[2],
+                              ?.position.split(".")[2],
                           ) - 1,
                           "operationRegime",
                           "Operando",
@@ -343,7 +343,7 @@ export function EquipmentLocationAccordion({
                           Number(
                             equipmentData
                               .find((eq) => eq.id === selectedEquipment.id)
-                              ?.localId.split(".")[2],
+                              ?.position.split(".")[2],
                           ) - 1,
                           "operationRegime",
                           "Parado",
@@ -358,7 +358,7 @@ export function EquipmentLocationAccordion({
                           Number(
                             equipmentData
                               .find((eq) => eq.id === selectedEquipment.id)
-                              ?.localId.split(".")[2],
+                              ?.position.split(".")[2],
                           ) - 1,
                           "operationRegime",
                           "Parada Geral",
@@ -387,7 +387,7 @@ export function EquipmentLocationAccordion({
                       Number(
                         equipmentData
                           .find((eq) => eq.id === selectedEquipment.id)
-                          ?.localId.split(".")[2],
+                          ?.position.split(".")[2],
                       ) - 1,
                       "CC",
                       e.target.value,
@@ -424,7 +424,7 @@ export function EquipmentLocationAccordion({
                           Number(
                             equipmentData
                               .find((eq) => eq.id === selectedEquipment.id)
-                              ?.localId.split(".")[2],
+                              ?.position.split(".")[2],
                           ) - 1,
                           "criticality",
                           "Criticidade A",
@@ -439,7 +439,7 @@ export function EquipmentLocationAccordion({
                           Number(
                             equipmentData
                               .find((eq) => eq.id === selectedEquipment.id)
-                              ?.localId.split(".")[2],
+                              ?.position.split(".")[2],
                           ) - 1,
                           "criticality",
                           "Criticidade B",
@@ -454,7 +454,7 @@ export function EquipmentLocationAccordion({
                           Number(
                             equipmentData
                               .find((eq) => eq.id === selectedEquipment.id)
-                              ?.localId.split(".")[2],
+                              ?.position.split(".")[2],
                           ) - 1,
                           "criticality",
                           "Criticidade C",
@@ -495,7 +495,7 @@ export function EquipmentLocationAccordion({
                           Number(
                             equipmentData
                               .find((eq) => eq.id === selectedEquipment.id)
-                              ?.localId.split(".")[2],
+                              ?.position.split(".")[2],
                           ) - 1,
                           "safetyMeasures",
                           "Necessita Bloqueio",
@@ -510,7 +510,7 @@ export function EquipmentLocationAccordion({
                           Number(
                             equipmentData
                               .find((eq) => eq.id === selectedEquipment.id)
-                              ?.localId.split(".")[2],
+                              ?.position.split(".")[2],
                           ) - 1,
                           "safetyMeasures",
                           "Não Necessita Bloqueio",
@@ -555,7 +555,7 @@ export function EquipmentLocationAccordion({
                             ?.flatMap((area) => area.sectors || []) // Flatten the sectors into an array
                             ?.find(
                               (sector) =>
-                                sector.localId === item.localId.slice(0, 3),
+                                sector.position === item.position.slice(0, 3),
                             ) as SectorProps,
                         );
                         setSelectedEquipment(item);
@@ -572,7 +572,7 @@ export function EquipmentLocationAccordion({
                             "bg-white/20 text-white",
                         )}
                       >
-                        {item.localId}
+                        {item.position}
                       </span>
                       <input
                         className={cn(

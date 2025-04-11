@@ -227,7 +227,7 @@ export function EquipmentServiceExtraInfoAccordion({
                             "bg-white/20 text-white",
                           )}
                         >
-                          {selectedSector?.localId}
+                          {selectedSector?.position}
                         </span>
                         <input
                           className={cn(
@@ -278,7 +278,7 @@ export function EquipmentServiceExtraInfoAccordion({
                             "bg-white/20 text-white",
                           )}
                         >
-                          {selectedEquipment?.localId}
+                          {selectedEquipment?.position}
                         </span>
                         <input
                           className={cn(
@@ -329,7 +329,7 @@ export function EquipmentServiceExtraInfoAccordion({
                             "bg-white/20 text-white",
                           )}
                         >
-                          {selectedService?.localId}
+                          {selectedService?.position}
                         </span>
                         <input
                           className={cn(
@@ -368,7 +368,7 @@ export function EquipmentServiceExtraInfoAccordion({
                     value={
                       equipmentData.find((eq) => eq.id === selectedEquipment.id)
                         ?.services[
-                        Number(selectedService.localId.split("S")[1]) - 1
+                        Number(selectedService.position.split("S")[1]) - 1
                       ]?.estimatedFinishTime || ""
                     }
                     onChange={(e) =>
@@ -376,11 +376,11 @@ export function EquipmentServiceExtraInfoAccordion({
                         Number(
                           equipmentData
                             .find((eq) => eq.id === selectedEquipment.id)
-                            ?.localId.split(".")[2],
+                            ?.position.split(".")[2],
                         ) - 1,
                         "estimatedFinishTime",
                         e.target.value,
-                        Number(selectedService.localId.split("S")[1]) - 1,
+                        Number(selectedService.position.split("S")[1]) - 1,
                       )
                     }
                   />
@@ -400,7 +400,7 @@ export function EquipmentServiceExtraInfoAccordion({
                             equipmentData.find(
                               (eq) => eq.id === selectedEquipment.id,
                             )?.services[
-                              Number(selectedService.localId.split("S")[1]) - 1
+                              Number(selectedService.position.split("S")[1]) - 1
                             ]?.extraTeam === "true"
                               ? "Sim"
                               : "Não"
@@ -418,11 +418,11 @@ export function EquipmentServiceExtraInfoAccordion({
                             Number(
                               equipmentData
                                 .find((eq) => eq.id === selectedEquipment.id)
-                                ?.localId.split(".")[2],
+                                ?.position.split(".")[2],
                             ) - 1,
                             "extraTeam",
                             "true",
-                            Number(selectedService.localId.split("S")[1]) - 1,
+                            Number(selectedService.position.split("S")[1]) - 1,
                           )
                         }
                       >
@@ -434,11 +434,11 @@ export function EquipmentServiceExtraInfoAccordion({
                             Number(
                               equipmentData
                                 .find((eq) => eq.id === selectedEquipment.id)
-                                ?.localId.split(".")[2],
+                                ?.position.split(".")[2],
                             ) - 1,
                             "extraTeam",
                             "false",
-                            Number(selectedService.localId.split("S")[1]) - 1,
+                            Number(selectedService.position.split("S")[1]) - 1,
                           )
                         }
                       >
@@ -458,7 +458,7 @@ export function EquipmentServiceExtraInfoAccordion({
                     value={
                       equipmentData.find((eq) => eq.id === selectedEquipment.id)
                         ?.services[
-                        Number(selectedService.localId.split("S")[1]) - 1
+                        Number(selectedService.position.split("S")[1]) - 1
                       ]?.estimatedExtraTeamTime || ""
                     }
                     onChange={(e) =>
@@ -466,11 +466,11 @@ export function EquipmentServiceExtraInfoAccordion({
                         Number(
                           equipmentData
                             .find((eq) => eq.id === selectedEquipment.id)
-                            ?.localId.split(".")[2],
+                            ?.position.split(".")[2],
                         ) - 1,
                         "estimatedExtraTeamTime",
                         e.target.value,
-                        Number(selectedService.localId.split("S")[1]) - 1,
+                        Number(selectedService.position.split("S")[1]) - 1,
                       )
                     }
                   />
@@ -523,7 +523,7 @@ export function EquipmentServiceExtraInfoAccordion({
                             "bg-white/20 text-white",
                           )}
                         >
-                          {selectedSector?.localId}
+                          {selectedSector?.position}
                         </span>
                         <input
                           className={cn(
@@ -574,7 +574,7 @@ export function EquipmentServiceExtraInfoAccordion({
                             "bg-white/20 text-white",
                           )}
                         >
-                          {selectedEquipment?.localId}
+                          {selectedEquipment?.position}
                         </span>
                         <input
                           className={cn(
@@ -633,7 +633,7 @@ export function EquipmentServiceExtraInfoAccordion({
                           ) && "bg-white/20 text-white",
                         )}
                       >
-                        {item.localId}
+                        {item.position}
                       </span>
                       <input
                         className={cn(
@@ -699,7 +699,7 @@ export function EquipmentServiceExtraInfoAccordion({
                             ?.flatMap((area) => area.sectors || []) // Flatten the sectors into an array
                             ?.find(
                               (sector) =>
-                                sector.localId === item.localId.slice(0, 3),
+                                sector.position === item.position.slice(0, 3),
                             ) as SectorProps,
                         );
                         setSelectedEquipment(item);
@@ -717,7 +717,7 @@ export function EquipmentServiceExtraInfoAccordion({
                             "bg-white/20 text-white",
                         )}
                       >
-                        {item.localId}
+                        {item.position}
                       </span>
                       <input
                         className={cn(

@@ -72,7 +72,7 @@ export function EquipmentServiceAccordion({
           const defaultService: ServiceTypeProps = {
             id: selectedService?.id || "",
             name: selectedService?.name || "",
-            localId: selectedService?.localId || "",
+            position: selectedService?.position || "",
             description: selectedService?.description || "",
             period: value, // Set the period using the new value
             executionTime: "",
@@ -107,7 +107,7 @@ export function EquipmentServiceAccordion({
         const defaultService: ServiceTypeProps = {
           id: selectedService?.id || "",
           name: selectedService?.name || "",
-          localId: selectedService?.localId || "",
+          position: selectedService?.position || "",
           description: selectedService?.description || "",
           period: value,
           executionTime: "",
@@ -147,7 +147,7 @@ export function EquipmentServiceAccordion({
     return (
       data.name !== "" &&
       data.id !== "" &&
-      data.localId !== "" &&
+      data.position !== "" &&
       data.description !== "" &&
       data.period !== "" &&
       data.executionTime !== "" &&
@@ -266,7 +266,7 @@ export function EquipmentServiceAccordion({
                             "bg-white/20 text-white",
                           )}
                         >
-                          {selectedSector?.localId}
+                          {selectedSector?.position}
                         </span>
                         <input
                           className={cn(
@@ -317,7 +317,7 @@ export function EquipmentServiceAccordion({
                             "bg-white/20 text-white",
                           )}
                         >
-                          {selectedEquipment?.localId}
+                          {selectedEquipment?.position}
                         </span>
                         <input
                           className={cn(
@@ -368,7 +368,7 @@ export function EquipmentServiceAccordion({
                             "bg-white/20 text-white",
                           )}
                         >
-                          {selectedService?.localId}
+                          {selectedService?.position}
                         </span>
                         <input
                           className={cn(
@@ -407,7 +407,7 @@ export function EquipmentServiceAccordion({
                     value={
                       equipmentData.find((eq) => eq.id === selectedEquipment.id)
                         ?.services[
-                        Number(selectedService.localId.split("S")[1]) - 1
+                        Number(selectedService.position.split("S")[1]) - 1
                       ]?.period || ""
                     }
                     onChange={(e) =>
@@ -415,11 +415,11 @@ export function EquipmentServiceAccordion({
                         Number(
                           equipmentData
                             .find((eq) => eq.id === selectedEquipment.id)
-                            ?.localId.split(".")[2],
+                            ?.position.split(".")[2],
                         ) - 1,
                         "period",
                         e.target.value,
-                        Number(selectedService.localId.split("S")[1]) - 1,
+                        Number(selectedService.position.split("S")[1]) - 1,
                       )
                     }
                   />
@@ -435,7 +435,7 @@ export function EquipmentServiceAccordion({
                     value={
                       equipmentData.find((eq) => eq.id === selectedEquipment.id)
                         ?.services[
-                        Number(selectedService.localId.split("S")[1]) - 1
+                        Number(selectedService.position.split("S")[1]) - 1
                       ]?.executionTime || ""
                     }
                     onChange={(e) =>
@@ -443,11 +443,11 @@ export function EquipmentServiceAccordion({
                         Number(
                           equipmentData
                             .find((eq) => eq.id === selectedEquipment.id)
-                            ?.localId.split(".")[2],
+                            ?.position.split(".")[2],
                         ) - 1,
                         "executionTime",
                         e.target.value,
-                        Number(selectedService.localId.split("S")[1]) - 1,
+                        Number(selectedService.position.split("S")[1]) - 1,
                       )
                     }
                   />
@@ -463,7 +463,7 @@ export function EquipmentServiceAccordion({
                     value={
                       equipmentData.find((eq) => eq.id === selectedEquipment.id)
                         ?.services[
-                        Number(selectedService.localId.split("S")[1]) - 1
+                        Number(selectedService.position.split("S")[1]) - 1
                       ]?.priority || ""
                     }
                     onChange={(e) =>
@@ -471,11 +471,11 @@ export function EquipmentServiceAccordion({
                         Number(
                           equipmentData
                             .find((eq) => eq.id === selectedEquipment.id)
-                            ?.localId.split(".")[2],
+                            ?.position.split(".")[2],
                         ) - 1,
                         "priority",
                         e.target.value,
-                        Number(selectedService.localId.split("S")[1]) - 1,
+                        Number(selectedService.position.split("S")[1]) - 1,
                       )
                     }
                   />
@@ -491,7 +491,7 @@ export function EquipmentServiceAccordion({
                     value={
                       equipmentData.find((eq) => eq.id === selectedEquipment.id)
                         ?.services[
-                        Number(selectedService.localId.split("S")[1]) - 1
+                        Number(selectedService.position.split("S")[1]) - 1
                       ]?.team || ""
                     }
                     onChange={(e) =>
@@ -499,11 +499,11 @@ export function EquipmentServiceAccordion({
                         Number(
                           equipmentData
                             .find((eq) => eq.id === selectedEquipment.id)
-                            ?.localId.split(".")[2],
+                            ?.position.split(".")[2],
                         ) - 1,
                         "team",
                         e.target.value,
-                        Number(selectedService.localId.split("S")[1]) - 1,
+                        Number(selectedService.position.split("S")[1]) - 1,
                       )
                     }
                   />
@@ -519,7 +519,7 @@ export function EquipmentServiceAccordion({
                     value={
                       equipmentData.find((eq) => eq.id === selectedEquipment.id)
                         ?.services[
-                        Number(selectedService.localId.split("S")[1]) - 1
+                        Number(selectedService.position.split("S")[1]) - 1
                       ]?.serviceCondition || ""
                     }
                     onChange={(e) =>
@@ -527,11 +527,11 @@ export function EquipmentServiceAccordion({
                         Number(
                           equipmentData
                             .find((eq) => eq.id === selectedEquipment.id)
-                            ?.localId.split(".")[2],
+                            ?.position.split(".")[2],
                         ) - 1,
                         "serviceCondition",
                         e.target.value,
-                        Number(selectedService.localId.split("S")[1]) - 1,
+                        Number(selectedService.position.split("S")[1]) - 1,
                       )
                     }
                   />
@@ -547,7 +547,7 @@ export function EquipmentServiceAccordion({
                     value={
                       equipmentData.find((eq) => eq.id === selectedEquipment.id)
                         ?.services[
-                        Number(selectedService.localId.split("S")[1]) - 1
+                        Number(selectedService.position.split("S")[1]) - 1
                       ]?.lubricantNeeded || ""
                     }
                     onChange={(e) =>
@@ -555,11 +555,11 @@ export function EquipmentServiceAccordion({
                         Number(
                           equipmentData
                             .find((eq) => eq.id === selectedEquipment.id)
-                            ?.localId.split(".")[2],
+                            ?.position.split(".")[2],
                         ) - 1,
                         "lubricantNeeded",
                         e.target.value,
-                        Number(selectedService.localId.split("S")[1]) - 1,
+                        Number(selectedService.position.split("S")[1]) - 1,
                       )
                     }
                   />
@@ -575,7 +575,7 @@ export function EquipmentServiceAccordion({
                     value={
                       equipmentData.find((eq) => eq.id === selectedEquipment.id)
                         ?.services[
-                        Number(selectedService.localId.split("S")[1]) - 1
+                        Number(selectedService.position.split("S")[1]) - 1
                       ]?.jobSystem || ""
                     }
                     onChange={(e) =>
@@ -583,11 +583,11 @@ export function EquipmentServiceAccordion({
                         Number(
                           equipmentData
                             .find((eq) => eq.id === selectedEquipment.id)
-                            ?.localId.split(".")[2],
+                            ?.position.split(".")[2],
                         ) - 1,
                         "jobSystem",
                         e.target.value,
-                        Number(selectedService.localId.split("S")[1]) - 1,
+                        Number(selectedService.position.split("S")[1]) - 1,
                       )
                     }
                   />
@@ -603,7 +603,7 @@ export function EquipmentServiceAccordion({
                     value={
                       equipmentData.find((eq) => eq.id === selectedEquipment.id)
                         ?.services[
-                        Number(selectedService.localId.split("S")[1]) - 1
+                        Number(selectedService.position.split("S")[1]) - 1
                       ]?.lubricantAmount || ""
                     }
                     onChange={(e) =>
@@ -611,11 +611,11 @@ export function EquipmentServiceAccordion({
                         Number(
                           equipmentData
                             .find((eq) => eq.id === selectedEquipment.id)
-                            ?.localId.split(".")[2],
+                            ?.position.split(".")[2],
                         ) - 1,
                         "lubricantAmount",
                         e.target.value,
-                        Number(selectedService.localId.split("S")[1]) - 1,
+                        Number(selectedService.position.split("S")[1]) - 1,
                       )
                     }
                   />
@@ -633,7 +633,7 @@ export function EquipmentServiceAccordion({
                     value={
                       equipmentData.find((eq) => eq.id === selectedEquipment.id)
                         ?.services[
-                        Number(selectedService.localId.split("S")[1]) - 1
+                        Number(selectedService.position.split("S")[1]) - 1
                       ]?.lubricantPoints || ""
                     }
                     onChange={(e) =>
@@ -641,11 +641,11 @@ export function EquipmentServiceAccordion({
                         Number(
                           equipmentData
                             .find((eq) => eq.id === selectedEquipment.id)
-                            ?.localId.split(".")[2],
+                            ?.position.split(".")[2],
                         ) - 1,
                         "lubricantPoints",
                         e.target.value,
-                        Number(selectedService.localId.split("S")[1]) - 1,
+                        Number(selectedService.position.split("S")[1]) - 1,
                       )
                     }
                   />
@@ -696,7 +696,7 @@ export function EquipmentServiceAccordion({
                             "bg-white/20 text-white",
                           )}
                         >
-                          {selectedSector?.localId}
+                          {selectedSector?.position}
                         </span>
                         <input
                           className={cn(
@@ -747,7 +747,7 @@ export function EquipmentServiceAccordion({
                             "bg-white/20 text-white",
                           )}
                         >
-                          {selectedEquipment?.localId}
+                          {selectedEquipment?.position}
                         </span>
                         <input
                           className={cn(
@@ -806,7 +806,7 @@ export function EquipmentServiceAccordion({
                           ) && "bg-white/20 text-white",
                         )}
                       >
-                        {item.localId}
+                        {item.position}
                       </span>
                       <input
                         className={cn(
@@ -872,7 +872,7 @@ export function EquipmentServiceAccordion({
                             ?.flatMap((area) => area.sectors || []) // Flatten the sectors into an array
                             ?.find(
                               (sector) =>
-                                sector.localId === item.localId.slice(0, 3),
+                                sector.position === item.position.slice(0, 3),
                             ) as SectorProps,
                         );
                         setSelectedEquipment(item);
@@ -890,7 +890,7 @@ export function EquipmentServiceAccordion({
                             "bg-white/20 text-white",
                         )}
                       >
-                        {item.localId}
+                        {item.position}
                       </span>
                       <input
                         className={cn(

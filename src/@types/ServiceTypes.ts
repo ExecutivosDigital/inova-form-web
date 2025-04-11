@@ -1,7 +1,7 @@
 export interface ServiceTypeProps {
   name: string;
   id: string;
-  localId: string;
+  position: string;
   description: string;
   period?: string;
   executionTime?: string;

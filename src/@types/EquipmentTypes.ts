@@ -26,7 +26,6 @@ export interface EquipmentTypeProps extends EquipmentsProps {
   contaminationLevel?: "low" | "medium" | "high";
   filterId?: string;
   filterProducts?: string;
-  position?: string;
   operationRegime?: string;
   CC?: string;
   criticality?: "A" | "B" | "C";

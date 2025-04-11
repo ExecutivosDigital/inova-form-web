@@ -53,7 +53,7 @@ export function SubSetAccordion({
       name: "",
       code: "",
       id: "",
-      localId: "",
+      position: "",
       cip: null,
     }),
   );
@@ -78,7 +78,7 @@ export function SubSetAccordion({
           name: "",
           code: "",
           id: "",
-          localId: "",
+          position: "",
           cip: null,
         }),
       );
@@ -93,7 +93,7 @@ export function SubSetAccordion({
   ) => {
     if (!selectedSector || !selectedEquipment || !selectedSet) return;
 
-    const fullLocalId = `${selectedSet.localId}.${index + 1}`;
+    const fullposition = `${selectedSet.position}.${index + 1}`;
 
     setInputSubSetsValues((prev) => {
       const updatedInputs = [...prev];
@@ -111,7 +111,7 @@ export function SubSetAccordion({
         if (!area.sectors) return area; // Skip areas without sectors
 
         const updatedSectors = area.sectors.map((sector) => {
-          if (sector.localId !== selectedSector.localId) return sector; // Skip unrelated sectors
+          if (sector.position !== selectedSector.position) return sector; // Skip unrelated sectors
 
           // Ensure equipments exist in sector
           const updatedEquipments = sector.equipments
@@ -119,7 +119,7 @@ export function SubSetAccordion({
             : [];
 
           const existingEquipmentIndex = updatedEquipments.findIndex(
-            (equipment) => equipment.localId === selectedEquipment.localId,
+            (equipment) => equipment.position === selectedEquipment.position,
           );
 
           if (existingEquipmentIndex !== -1) {
@@ -130,7 +130,7 @@ export function SubSetAccordion({
             const updatedSets = equipment.sets ? [...equipment.sets] : [];
 
             const existingSetIndex = updatedSets.findIndex(
-              (set) => set.localId === selectedSet.localId,
+              (set) => set.position === selectedSet.position,
             );
 
             if (existingSetIndex !== -1) {
@@ -140,9 +140,9 @@ export function SubSetAccordion({
               // Ensure subSets exist or create an empty array
               const updatedSubSets = set.subSets ? [...set.subSets] : [];
 
-              // Find the existing subSet by localId
+              // Find the existing subSet by position
               const existingSubSetIndex = updatedSubSets.findIndex(
-                (subSet) => subSet.localId === fullLocalId,
+                (subSet) => subSet.position === fullposition,
               );
 
               if (existingSubSetIndex !== -1) {
@@ -157,7 +157,7 @@ export function SubSetAccordion({
                   name: "",
                   code: "",
                   id: v4(), // Unique ID
-                  localId: fullLocalId,
+                  position: fullposition,
                   cip: null,
                   [field]: value,
                 });
@@ -208,7 +208,7 @@ export function SubSetAccordion({
         name: "",
         code: "",
         id: "",
-        localId: "",
+        position: "",
         cip: null,
       },
     ]);
@@ -343,7 +343,7 @@ export function SubSetAccordion({
                             "bg-white/20 text-white",
                           )}
                         >
-                          {selectedSector?.localId}
+                          {selectedSector?.position}
                         </span>
                         <input
                           className={cn(
@@ -370,8 +370,8 @@ export function SubSetAccordion({
                           ?.flatMap((area) => area.sectors || []) // Flatten the sectors into an array
                           ?.find(
                             (sector) =>
-                              sector.localId ===
-                              selectedEquipment?.localId.slice(0, 3),
+                              sector.position ===
+                              selectedEquipment?.position.slice(0, 3),
                           )?.name || ""}
                       </span>
                     </PopoverContent>
@@ -402,7 +402,7 @@ export function SubSetAccordion({
                             "bg-white/20 text-white",
                           )}
                         >
-                          {selectedEquipment?.localId}
+                          {selectedEquipment?.position}
                         </span>
                         <input
                           className={cn(
@@ -453,7 +453,7 @@ export function SubSetAccordion({
                             "bg-white/20 text-white",
                           )}
                         >
-                          {selectedSet?.localId}
+                          {selectedSet?.position}
                         </span>
                         <input
                           className={cn(
@@ -583,7 +583,7 @@ export function SubSetAccordion({
                           "bg-white/20 text-white",
                         )}
                       >
-                        {selectedSector?.localId}
+                        {selectedSector?.position}
                       </span>
                       <input
                         className={cn(
@@ -610,8 +610,8 @@ export function SubSetAccordion({
                         ?.flatMap((area) => area.sectors || []) // Flatten the sectors into an array
                         ?.find(
                           (sector) =>
-                            sector.localId ===
-                            selectedEquipment?.localId.slice(0, 3),
+                            sector.position ===
+                            selectedEquipment?.position.slice(0, 3),
                         )?.name || ""}
                     </span>
                   </PopoverContent>
@@ -642,7 +642,7 @@ export function SubSetAccordion({
                           "bg-white/20 text-white",
                         )}
                       >
-                        {selectedEquipment.localId}
+                        {selectedEquipment.position}
                       </span>
                       <input
                         className={cn(
@@ -671,7 +671,7 @@ export function SubSetAccordion({
               {layoutData.areas
                 ?.flatMap((area) => area.sectors || [])
                 .flatMap((sector) => sector.equipments || [])
-                .find((eq) => eq.localId === selectedEquipment.localId)
+                .find((eq) => eq.position === selectedEquipment.position)
                 ?.sets?.map((item, index) => (
                   <div key={index} className="flex flex-col gap-2">
                     <span className="text-primary text-xs md:text-sm">
@@ -768,7 +768,7 @@ export function SubSetAccordion({
                               ?.flatMap((area) => area.sectors || []) // Flatten the sectors into an array
                               ?.find(
                                 (sector) =>
-                                  sector.localId === item.localId.slice(0, 3),
+                                  sector.position === item.position.slice(0, 3),
                               ) as SectorProps,
                           );
                           setSelectedEquipment(item);
@@ -785,7 +785,7 @@ export function SubSetAccordion({
                               "bg-white/20 text-white",
                           )}
                         >
-                          {item.localId}
+                          {item.position}
                         </span>
                         <input
                           className={cn(

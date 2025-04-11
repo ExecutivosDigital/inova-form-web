@@ -44,7 +44,7 @@ export function SetAccordion({
       name: "",
       code: "",
       id: "",
-      localId: "",
+      position: "",
       subSets: null,
     }),
   );
@@ -65,7 +65,7 @@ export function SetAccordion({
         name: "",
         code: "",
         id: "",
-        localId: "",
+        position: "",
         subSets: null,
       },
     ]);
@@ -78,7 +78,7 @@ export function SetAccordion({
   ) => {
     if (!selectedSector || !selectedEquipment) return;
 
-    const fullLocalId = `${selectedEquipment.localId}.${index + 1}`;
+    const fullposition = `${selectedEquipment.position}.${index + 1}`;
 
     setInputSetsValues((prev) => {
       const updatedInputs = [...prev];
@@ -96,7 +96,7 @@ export function SetAccordion({
         if (!area.sectors) return area; // Skip areas without sectors
 
         const updatedSectors = area.sectors.map((sector) => {
-          if (sector.localId !== selectedSector.localId) return sector; // Skip unrelated sectors
+          if (sector.position !== selectedSector.position) return sector; // Skip unrelated sectors
 
           // Ensure equipments exist in sector, default to an empty array if null
           const updatedEquipments = sector.equipments
@@ -104,7 +104,7 @@ export function SetAccordion({
             : [];
 
           const existingEquipmentIndex = updatedEquipments.findIndex(
-            (equipment) => equipment.localId === selectedEquipment.localId,
+            (equipment) => equipment.position === selectedEquipment.position,
           );
 
           if (existingEquipmentIndex !== -1) {
@@ -114,9 +114,9 @@ export function SetAccordion({
             // Ensure sets exist or create an empty array
             const updatedSets = equipment.sets ? [...equipment.sets] : [];
 
-            // Find the existing set by localId
+            // Find the existing set by position
             const existingSetIndex = updatedSets.findIndex(
-              (set) => set.localId === fullLocalId,
+              (set) => set.position === fullposition,
             );
 
             if (existingSetIndex !== -1) {
@@ -131,7 +131,7 @@ export function SetAccordion({
                 name: "",
                 code: "",
                 id: v4(), // Unique ID
-                localId: fullLocalId,
+                position: fullposition,
                 subSets: null,
                 [field]: value,
               });
@@ -188,7 +188,7 @@ export function SetAccordion({
           name: "",
           code: "",
           id: "",
-          localId: "",
+          position: "",
           subSets: null,
         }),
       );
@@ -207,18 +207,18 @@ export function SetAccordion({
   }, [layoutData.areas]);
 
   useEffect(() => {
-    if (!layoutData.areas || !selectedSector?.localId) return;
+    if (!layoutData.areas || !selectedSector?.position) return;
 
     const selectedSectorData = layoutData.areas
       .flatMap((area) => area.sectors || [])
-      .find((sector) => sector.localId === selectedSector.localId);
+      .find((sector) => sector.position === selectedSector.position);
 
     if (selectedSectorData?.equipments?.length) {
       setEquipmentPages(
         Math.ceil((selectedSectorData.equipments.length || 0) / 6),
       );
     }
-  }, [layoutData.areas, selectedSector?.localId]);
+  }, [layoutData.areas, selectedSector?.position]);
 
   return (
     <AccordionItem value="4" onClick={() => setSelectedLayoutStep(4)}>
@@ -328,7 +328,7 @@ export function SetAccordion({
                             "bg-white/20 text-white",
                           )}
                         >
-                          {selectedSector?.localId}
+                          {selectedSector?.position}
                         </span>
                         <input
                           className={cn(
@@ -379,7 +379,7 @@ export function SetAccordion({
                             "bg-white/20 text-white",
                           )}
                         >
-                          {selectedEquipment?.localId}
+                          {selectedEquipment?.position}
                         </span>
                         <input
                           className={cn(
@@ -509,7 +509,7 @@ export function SetAccordion({
                           "bg-white/20 text-white",
                         )}
                       >
-                        {selectedSector.localId}
+                        {selectedSector.position}
                       </span>
                       <input
                         className={cn(
@@ -537,7 +537,7 @@ export function SetAccordion({
               </div>
               {layoutData.areas
                 ?.flatMap((area) => area.sectors || [])
-                .find((sector) => sector.localId === selectedSector?.localId)
+                .find((sector) => sector.position === selectedSector?.position)
                 ?.equipments?.slice(
                   (currentEquipmentPage - 1) * 6,
                   currentEquipmentPage * 6,
@@ -644,7 +644,7 @@ export function SetAccordion({
                               "bg-white/20 text-white",
                           )}
                         >
-                          {item.localId}
+                          {item.position}
                         </span>
                         <input
                           className={cn(

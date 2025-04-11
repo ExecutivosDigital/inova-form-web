@@ -196,7 +196,7 @@ export function EquipmentProductInfoAccordion({
                             "bg-white/20 text-white",
                           )}
                         >
-                          {selectedSector?.localId}
+                          {selectedSector?.position}
                         </span>
                         <input
                           className={cn(
@@ -247,7 +247,7 @@ export function EquipmentProductInfoAccordion({
                             "bg-white/20 text-white",
                           )}
                         >
-                          {selectedEquipment?.localId}
+                          {selectedEquipment?.position}
                         </span>
                         <input
                           className={cn(
@@ -303,7 +303,7 @@ export function EquipmentProductInfoAccordion({
                           Number(
                             equipmentData
                               .find((eq) => eq.id === selectedEquipment.id)
-                              ?.localId.split(".")[2],
+                              ?.position.split(".")[2],
                           ) - 1,
                           "productId",
                           "Tipo 1",
@@ -318,7 +318,7 @@ export function EquipmentProductInfoAccordion({
                           Number(
                             equipmentData
                               .find((eq) => eq.id === selectedEquipment.id)
-                              ?.localId.split(".")[2],
+                              ?.position.split(".")[2],
                           ) - 1,
                           "productId",
                           "Tipo 2",
@@ -333,7 +333,7 @@ export function EquipmentProductInfoAccordion({
                           Number(
                             equipmentData
                               .find((eq) => eq.id === selectedEquipment.id)
-                              ?.localId.split(".")[2],
+                              ?.position.split(".")[2],
                           ) - 1,
                           "productId",
                           "Tipo 3",
@@ -362,7 +362,7 @@ export function EquipmentProductInfoAccordion({
                       Number(
                         equipmentData
                           .find((eq) => eq.id === selectedEquipment.id)
-                          ?.localId.split(".")[2],
+                          ?.position.split(".")[2],
                       ) - 1,
                       "volume",
                       e.target.value,
@@ -409,7 +409,7 @@ export function EquipmentProductInfoAccordion({
                           Number(
                             equipmentData
                               .find((eq) => eq.id === selectedEquipment.id)
-                              ?.localId.split(".")[2],
+                              ?.position.split(".")[2],
                           ) - 1,
                           "contaminationLevel",
                           "low",
@@ -424,7 +424,7 @@ export function EquipmentProductInfoAccordion({
                           Number(
                             equipmentData
                               .find((eq) => eq.id === selectedEquipment.id)
-                              ?.localId.split(".")[2],
+                              ?.position.split(".")[2],
                           ) - 1,
                           "contaminationLevel",
                           "medium",
@@ -439,7 +439,7 @@ export function EquipmentProductInfoAccordion({
                           Number(
                             equipmentData
                               .find((eq) => eq.id === selectedEquipment.id)
-                              ?.localId.split(".")[2],
+                              ?.position.split(".")[2],
                           ) - 1,
                           "contaminationLevel",
                           "high",
@@ -466,7 +466,7 @@ export function EquipmentProductInfoAccordion({
                       Number(
                         equipmentData
                           .find((eq) => eq.id === selectedEquipment.id)
-                          ?.localId.split(".")[2],
+                          ?.position.split(".")[2],
                       ) - 1,
                       "filterId",
                       e.target.value,
@@ -503,7 +503,7 @@ export function EquipmentProductInfoAccordion({
                           Number(
                             equipmentData
                               .find((eq) => eq.id === selectedEquipment.id)
-                              ?.localId.split(".")[2],
+                              ?.position.split(".")[2],
                           ) - 1,
                           "filterProducts",
                           "Produto 1",
@@ -518,7 +518,7 @@ export function EquipmentProductInfoAccordion({
                           Number(
                             equipmentData
                               .find((eq) => eq.id === selectedEquipment.id)
-                              ?.localId.split(".")[2],
+                              ?.position.split(".")[2],
                           ) - 1,
                           "filterProducts",
                           "Produto 2",
@@ -533,7 +533,7 @@ export function EquipmentProductInfoAccordion({
                           Number(
                             equipmentData
                               .find((eq) => eq.id === selectedEquipment.id)
-                              ?.localId.split(".")[2],
+                              ?.position.split(".")[2],
                           ) - 1,
                           "filterProducts",
                           "Produto 3",
@@ -578,7 +578,7 @@ export function EquipmentProductInfoAccordion({
                             ?.flatMap((area) => area.sectors || []) // Flatten the sectors into an array
                             ?.find(
                               (sector) =>
-                                sector.localId === item.localId.slice(0, 3),
+                                sector.position === item.position.slice(0, 3),
                             ) as SectorProps,
                         );
                         setSelectedEquipment(item);
@@ -595,7 +595,7 @@ export function EquipmentProductInfoAccordion({
                             "bg-white/20 text-white",
                         )}
                       >
-                        {item.localId}
+                        {item.position}
                       </span>
                       <input
                         className={cn(

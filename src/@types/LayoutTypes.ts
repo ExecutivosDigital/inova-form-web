@@ -2,14 +2,14 @@ export interface CipProps {
   name: string;
   code: string;
   id: string;
-  localId: string;
+  position: string;
 }
 
 export interface SubSetProps {
   name: string;
   code: string;
   id: string;
-  localId: string;
+  position: string;
   cip: CipProps[] | null;
 }
 
@@ -17,7 +17,7 @@ export interface SetProps {
   name: string;
   code: string;
   id: string;
-  localId: string;
+  position: string;
   subSets: SubSetProps[] | null;
 }
 
@@ -31,7 +31,7 @@ export interface EquipmentsProps {
   description: string;
   photos: string[] | null;
   id: string;
-  localId: string;
+  position: string;
   sets: SetProps[] | null;
   initialRotation?: number;
   finalRotation?: number;
@@ -47,14 +47,15 @@ export interface EquipmentsProps {
 export interface SectorProps {
   name: string;
   id: string;
-  localId: string;
+  position: string;
   equipments: EquipmentsProps[] | null;
 }
 
 export interface AreaProps {
+  createdAt?: string;
   name: string;
   id: string;
-  localId: string;
+  position: string;
   sectors: SectorProps[] | null;
 }
 
