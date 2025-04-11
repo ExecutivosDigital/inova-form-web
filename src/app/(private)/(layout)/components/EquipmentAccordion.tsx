@@ -64,7 +64,7 @@ export function EquipmentAccordion({
       description: "",
       photos: null,
       id: "",
-      localId: "",
+      position: "",
       sets: null,
     }),
   );
@@ -87,7 +87,7 @@ export function EquipmentAccordion({
         description: "",
         photos: null,
         id: "",
-        localId: "",
+        position: "",
         sets: null,
       },
     ]);
@@ -103,7 +103,7 @@ export function EquipmentAccordion({
   ) => {
     if (!selectedSector) return;
 
-    const fullLocalId = `${selectedSector.localId}.${index + 1}`; // Ensure the localId is correct
+    const fullposition = `${selectedSector.position}.${index + 1}`; // Ensure the position is correct
 
     // Update local UI state
     setInputEquipmentValues((prev) => {
@@ -123,7 +123,7 @@ export function EquipmentAccordion({
         if (!area.sectors) return area; // Skip areas without sectors
 
         const updatedSectors = area.sectors.map((sector) => {
-          if (sector.localId !== selectedSector.localId) return sector; // Skip unrelated sectors
+          if (sector.position !== selectedSector.position) return sector; // Skip unrelated sectors
 
           // Clone the equipment array or create a new one
           const updatedEquipments = sector.equipments
@@ -131,7 +131,7 @@ export function EquipmentAccordion({
             : [];
 
           const existingEquipmentIndex = updatedEquipments.findIndex(
-            (equipment) => equipment.localId === fullLocalId,
+            (equipment) => equipment.position === fullposition,
           );
 
           if (existingEquipmentIndex !== -1) {
@@ -152,7 +152,7 @@ export function EquipmentAccordion({
               description: "",
               photos: null,
               id: v4(), // Assign a unique ID once, only on creation
-              localId: fullLocalId,
+              position: fullposition,
               sets: null,
               [field]: value,
             });
@@ -205,7 +205,7 @@ export function EquipmentAccordion({
           description: "",
           photos: null,
           id: v4(),
-          localId: v4(),
+          position: v4(),
           sets: null,
         }),
       );
@@ -342,7 +342,7 @@ export function EquipmentAccordion({
                             "bg-white/20 text-white",
                           )}
                         >
-                          {selectedSector?.localId}
+                          {selectedSector?.position}
                         </span>
                         <input
                           className={cn(
@@ -572,7 +572,7 @@ export function EquipmentAccordion({
                           "bg-white/20 text-white",
                         )}
                       >
-                        {selectedSector.localId}
+                        {selectedSector.position}
                       </span>
                       <input
                         className={cn(
@@ -755,7 +755,7 @@ export function EquipmentAccordion({
                             item.equipments && "bg-white/20 text-white",
                           )}
                         >
-                          {item.localId}
+                          {item.position}
                         </span>
                         <input
                           className={cn(

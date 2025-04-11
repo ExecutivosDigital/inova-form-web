@@ -83,7 +83,7 @@ export function CipAccordion({
         name: "",
         code: "",
         id: "",
-        localId: "",
+        position: "",
       },
     ]);
   };
@@ -208,7 +208,7 @@ export function CipAccordion({
                           "bg-white/20 text-white",
                         )}
                       >
-                        {selectedSector?.localId}
+                        {selectedSector?.position}
                       </span>
                       <input
                         className={cn(
@@ -235,8 +235,8 @@ export function CipAccordion({
                         ?.flatMap((area) => area.sectors || []) // Flatten the sectors into an array
                         ?.find(
                           (sector) =>
-                            sector.localId ===
-                            selectedEquipment?.localId.slice(0, 3),
+                            sector.position ===
+                            selectedEquipment?.position.slice(0, 3),
                         )?.name || ""}
                     </span>
                   </PopoverContent>
@@ -267,7 +267,7 @@ export function CipAccordion({
                           "bg-white/20 text-white",
                         )}
                       >
-                        {selectedEquipment?.localId}
+                        {selectedEquipment?.position}
                       </span>
                       <input
                         className={cn(
@@ -318,7 +318,7 @@ export function CipAccordion({
                           "bg-white/20 text-white",
                         )}
                       >
-                        {selectedSet?.localId}
+                        {selectedSet?.position}
                       </span>
                       <input
                         className={cn(
@@ -369,7 +369,7 @@ export function CipAccordion({
                           "bg-white/20 text-white",
                         )}
                       >
-                        {selectedSubSet?.localId}
+                        {selectedSubSet?.position}
                       </span>
                       <input
                         className={cn(
@@ -500,7 +500,7 @@ export function CipAccordion({
                           "bg-white/20 text-white",
                         )}
                       >
-                        {selectedSector?.localId}
+                        {selectedSector?.position}
                       </span>
                       <input
                         className={cn(
@@ -527,8 +527,8 @@ export function CipAccordion({
                         ?.flatMap((area) => area.sectors || []) // Flatten the sectors into an array
                         ?.find(
                           (sector) =>
-                            sector.localId ===
-                            selectedEquipment?.localId.slice(0, 3),
+                            sector.position ===
+                            selectedEquipment?.position.slice(0, 3),
                         )?.name || ""}
                     </span>
                   </PopoverContent>
@@ -559,7 +559,7 @@ export function CipAccordion({
                           "bg-white/20 text-white",
                         )}
                       >
-                        {selectedEquipment?.localId}
+                        {selectedEquipment?.position}
                       </span>
                       <input
                         className={cn(
@@ -610,7 +610,7 @@ export function CipAccordion({
                           "bg-white/20 text-white",
                         )}
                       >
-                        {selectedSet?.localId}
+                        {selectedSet?.position}
                       </span>
                       <input
                         className={cn(
@@ -734,7 +734,7 @@ export function CipAccordion({
                           "bg-white/20 text-white",
                         )}
                       >
-                        {selectedSector?.localId}
+                        {selectedSector?.position}
                       </span>
                       <input
                         className={cn(
@@ -761,8 +761,8 @@ export function CipAccordion({
                         ?.flatMap((area) => area.sectors || []) // Flatten the sectors into an array
                         ?.find(
                           (sector) =>
-                            sector.localId ===
-                            selectedEquipment?.localId.slice(0, 3),
+                            sector.position ===
+                            selectedEquipment?.position.slice(0, 3),
                         )?.name || ""}
                     </span>
                   </PopoverContent>
@@ -793,7 +793,7 @@ export function CipAccordion({
                           "bg-white/20 text-white",
                         )}
                       >
-                        {selectedEquipment.localId}
+                        {selectedEquipment.position}
                       </span>
                       <input
                         className={cn(
@@ -916,7 +916,7 @@ export function CipAccordion({
                               ?.flatMap((area) => area.sectors || []) // Flatten the sectors into an array
                               ?.find(
                                 (sector) =>
-                                  sector.localId === item.localId.slice(0, 3),
+                                  sector.position === item.position.slice(0, 3),
                               ) as SectorProps,
                           );
                           setCurrentEquipmentPage(1);
@@ -936,7 +936,7 @@ export function CipAccordion({
                               "bg-white/20 text-white",
                           )}
                         >
-                          {item.localId}
+                          {item.position}
                         </span>
                         <input
                           className={cn(
