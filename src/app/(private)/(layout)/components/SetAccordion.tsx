@@ -29,7 +29,7 @@ export function SetAccordion({
   selectedLayoutStep,
   setSelectedLayoutStep,
 }: SetAccordionProps) {
-  const { layoutData, setLayoutData } = useLayoutContext();
+  const { layoutData, setLayoutData, originalSets } = useLayoutContext();
   const [isImportHovered, setIsImportHovered] = useState(false);
   const [selectedSector, setSelectedSector] = useState<SectorProps | null>(
     null,
@@ -197,6 +197,63 @@ export function SetAccordion({
     setCurrentSectorPage(1);
   };
 
+  async function HandleCreateSets(newSets?: SetProps[]) {
+    console.log("newSets: ", newSets);
+    // // If no new equipments are provided, get them by flattening the equipments from all sectors in all areas.
+    // const setsToSend =
+    //   newSets ||
+    //   layoutData.areas?.flatMap((area) =>
+    //     area.sectors?.flatMap((sector) => sector.equipments?.flatMap((eq) => eq.sets)),
+    //   );
+
+    // const newEquipmentResponse = await PostAPI(
+    //   "/equipment/multi",
+    //   {
+    //     equipments: setsToSend?.map((set) => {
+    //       // Check if the equipment has a valid position string.
+    //       const parts = set?.position.split(".");
+    //       let equipmentId = "";
+    //       if (parts && parts.length >= 3) {
+    //         // Join the first two parts to get the sector position (e.g., "1.1")
+    //         const setEquipmentPos = `${parts[0]}.${parts[1]}.${parts[2]}`;
+
+    //         // Flatten all sectors from all areas and find the matching sector.
+    //         const equipment = layoutData.areas
+    //           ?.flatMap((area) => area.sectors || [])
+    //           .find((sec) => sec.position === setEquipmentPos);
+
+    //         // Get the sector's id, or leave it as an empty string if not found.
+    //         equipmentId = sector?.id as string;
+    //       }
+    //       return {
+    //         name: equipment?.name,
+    //         tag: equipment?.tag,
+    //         type: equipment?.type,
+    //         maker: equipment?.maker,
+    //         model: equipment?.model,
+    //         year: equipment?.year,
+    //         description: equipment?.description,
+    //         position: equipment?.position,
+    //         sectorId,
+    //         photos: [
+    //           {
+    //             url: fileUrl,
+    //             fullUrl: fullFileUrl,
+    //           },
+    //         ],
+    //       };
+    //     }),
+    //   },
+    //   true,
+    // );
+    // if (newEquipmentResponse.status === 200) {
+    //   toast.success("Equipamentos cadastrados com sucesso");
+    //   await GetEquipments(); // re-fetch areas from the API
+    //   return setSelectedLayoutStep(4);
+    // }
+    // return toast.error("Erro ao cadastrar Equipamentos");
+  }
+
   useEffect(() => {
     if (
       layoutData.areas &&
@@ -263,7 +320,31 @@ export function SetAccordion({
               <div
                 onClick={(e) => {
                   e.stopPropagation();
-                  setSelectedLayoutStep(5);
+                  const currentSets =
+                    layoutData.areas?.flatMap(
+                      (area) =>
+                        area.sectors?.flatMap(
+                          (sector) =>
+                            sector.equipments?.flatMap((eq) => eq.sets || []) ||
+                            [],
+                        ) || [],
+                    ) || [];
+                  let newSets: SetProps[] = [];
+                  if (originalSets) {
+                    newSets = currentSets.filter(
+                      (set) =>
+                        !originalSets.find(
+                          (original) => original.position === set.position,
+                        ),
+                    );
+                  } else {
+                    newSets = currentSets;
+                  }
+                  if (newSets.length > 0) {
+                    HandleCreateSets(newSets);
+                  } else {
+                    setSelectedLayoutStep(5);
+                  }
                 }}
                 className={cn(
                   "bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4",

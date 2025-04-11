@@ -5,6 +5,7 @@ import {
   EquipmentsProps,
   LayoutTypeProps,
   SectorProps,
+  SetProps,
 } from "@/@types/LayoutTypes";
 import { createContext, useContext, useEffect, useState } from "react";
 import { useApiContext } from "./ApiContext";
@@ -26,9 +27,12 @@ interface LayoutContextProps {
   setOriginalEquipments: React.Dispatch<
     React.SetStateAction<EquipmentsProps[] | null>
   >;
+  originalSets: SetProps[] | null;
+  setOriginalSets: React.Dispatch<React.SetStateAction<SetProps[] | null>>;
   GetAreas: () => void;
   GetSectors: () => void;
   GetEquipments: () => void;
+  GetSets: () => void;
 }
 
 const LayoutContext = createContext<LayoutContextProps | undefined>(undefined);
@@ -39,7 +43,7 @@ interface ProviderProps {
 
 export const LayoutContextProvider = ({ children }: ProviderProps) => {
   const { GetAPI } = useApiContext();
-  const [selectedLayoutStep, setSelectedLayoutStep] = useState(3);
+  const [selectedLayoutStep, setSelectedLayoutStep] = useState(1);
   const [layoutData, setLayoutData] = useState<LayoutTypeProps>({
     areas: null,
   });
@@ -50,6 +54,7 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
   const [originalEquipments, setOriginalEquipments] = useState<
     EquipmentsProps[] | null
   >(null);
+  const [originalSets, setOriginalSets] = useState<SetProps[] | null>(null);
   const [cipCount, setCipCount] = useState(1);
 
   console.log("layoutData: ", layoutData);
@@ -131,11 +136,17 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
     }
   }
 
+  async function GetSets() {
+    const sets = await GetAPI("/set", true);
+    console.log("sets: ", sets);
+  }
+
   useEffect(() => {
     async function fetchData() {
       await GetAreas();
       await GetSectors();
       await GetEquipments();
+      await GetSets();
     }
     fetchData();
   }, []);
@@ -160,9 +171,12 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
         setOriginalSectors,
         originalEquipments,
         setOriginalEquipments,
+        originalSets,
+        setOriginalSets,
         GetAreas,
         GetSectors,
         GetEquipments,
+        GetSets,
       }}
     >
       {children}
