@@ -18,6 +18,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/global/ui/popover";
+import { useApiContext } from "@/context/ApiContext";
 import { useLayoutContext } from "@/context/LayoutContext";
 import { cn } from "@/lib/utils";
 import { DropdownMenuArrow } from "@radix-ui/react-dropdown-menu";
@@ -25,11 +26,13 @@ import {
   ArrowRight,
   ChevronDown,
   ChevronLeft,
+  Loader2,
   Search,
   Upload,
 } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import toast from "react-hot-toast";
 import { v4 } from "uuid";
 
 interface EquipmentAccordionProps {
@@ -41,7 +44,9 @@ export function EquipmentAccordion({
   selectedLayoutStep,
   setSelectedLayoutStep,
 }: EquipmentAccordionProps) {
-  const { layoutData, setLayoutData } = useLayoutContext();
+  const { layoutData, setLayoutData, GetEquipments, originalEquipments } =
+    useLayoutContext();
+  const { PostAPI } = useApiContext();
   const [isImportHovered, setIsImportHovered] = useState(false);
   const [selectedSector, setSelectedSector] = useState<SectorProps | null>(
     null,
@@ -72,6 +77,10 @@ export function EquipmentAccordion({
   const [selectedEquipment, setSelectedEquipment] = useState<number | null>(
     null,
   );
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [fileUrl, setFileUrl] = useState("");
+  const [fullFileUrl, setFullFileUrl] = useState("");
 
   const handleAddEquipment = () => {
     setEquipmentsArrayLength((prevLength) => prevLength + 1);
@@ -178,42 +187,23 @@ export function EquipmentAccordion({
     setSelectedSector(sector);
     setEquipmentPages(1);
 
-    // Properly reset sector values
     if (sector.equipments && sector.equipments.length > 0) {
-      // Keep full equipment objects instead of replacing them with strings
-      const updatedEquipmentValues = sector.equipments.map((equipment) => ({
-        ...equipment, // Copy all properties of the existing equipment
-      }));
-
+      // Build an array from the selected area's sectors.
+      const updatedEquipmentValues = sector.equipments.map(
+        (equipment) => equipment,
+      );
       setInputEquipmentValues(updatedEquipmentValues);
-      setEquipmentsArrayLength(sector.equipments.length);
-      setEquipmentPages((prevPages) =>
-        ((sector.equipments ? sector.equipments.length : 0) + 1) / 6 > prevPages
-          ? prevPages + 1
-          : prevPages,
-      );
+      setEquipmentsArrayLength(updatedEquipmentValues.length);
+      setEquipmentPages(Math.ceil(updatedEquipmentValues.length / 6));
     } else {
-      // Initialize with default equipment structure instead of strings
-      setInputEquipmentValues(
-        Array(5).fill({
-          name: "",
-          tag: "",
-          type: "",
-          maker: "",
-          model: "",
-          year: "",
-          description: "",
-          photos: null,
-          id: v4(),
-          position: v4(),
-          sets: null,
-        }),
-      );
-      setEquipmentsArrayLength(5);
+      // If no sectors exist for the selected area, default to 5 empty inputs.
+      const defaultLength = 5;
+      setInputEquipmentValues(Array(defaultLength).fill(""));
+      setEquipmentsArrayLength(defaultLength);
       setEquipmentPages(1);
     }
 
-    setCurrentSectorPage(1);
+    setCurrentEquipmentPage(1);
   };
 
   const isEquipmentFullyFilled = (equipment: EquipmentsProps) => {
@@ -227,6 +217,128 @@ export function EquipmentAccordion({
       equipment.description
     );
   };
+
+  async function handleUpload(file: File) {
+    const formData = new FormData();
+    // Substitui espaços em branco no nome do arquivo por _
+    const sanitizedFileName = file.name.replace(/\s+/g, "-");
+    formData.append("file", file, sanitizedFileName);
+    setIsUploadingFile(true);
+    const response = await PostAPI("/file", formData, true);
+    // Verifica se a resposta contém a URL do arquivo
+    if (response && response.body && response.body.url) {
+      setFileUrl(response.body.url);
+      setFullFileUrl(response.body.fullUrl);
+      setIsUploadingFile(false);
+      return response.body.url;
+    } else {
+      setIsUploadingFile(false);
+      toast.error("Falha no upload do arquivo. Tente novamente!");
+      return null;
+    }
+  }
+
+  async function HandleCreateEquipment(newEquipments?: EquipmentsProps[]) {
+    // If no new equipments are provided, get them by flattening the equipments from all sectors in all areas.
+    const equipmentsToSend =
+      newEquipments ||
+      layoutData.areas?.flatMap((area) =>
+        area.sectors?.flatMap((sector) => sector.equipments),
+      );
+
+    const newEquipmentResponse = await PostAPI(
+      "/equipment/multi",
+      {
+        equipments: equipmentsToSend?.map((equipment) => {
+          // Check if the equipment has a valid position string.
+          const parts = equipment?.position.split(".");
+          let sectorId = "";
+          if (parts && parts.length >= 2) {
+            // Join the first two parts to get the sector position (e.g., "1.1")
+            const equipmentSectorPos = `${parts[0]}.${parts[1]}`;
+
+            // Flatten all sectors from all areas and find the matching sector.
+            const sector = layoutData.areas
+              ?.flatMap((area) => area.sectors || [])
+              .find((sec) => sec.position === equipmentSectorPos);
+
+            // Get the sector's id, or leave it as an empty string if not found.
+            sectorId = sector?.id as string;
+          }
+          return {
+            name: equipment?.name,
+            tag: equipment?.tag,
+            type: equipment?.type,
+            maker: equipment?.maker,
+            model: equipment?.model,
+            year: equipment?.year,
+            description: equipment?.description,
+            position: equipment?.position,
+            sectorId,
+            photos: [
+              {
+                url: fileUrl,
+                fullUrl: fullFileUrl,
+              },
+            ],
+          };
+        }),
+      },
+      true,
+    );
+    if (newEquipmentResponse.status === 200) {
+      toast.success("Equipamentos cadastrados com sucesso");
+      await GetEquipments(); // re-fetch areas from the API
+      return setSelectedLayoutStep(4);
+    }
+    return toast.error("Erro ao cadastrar Equipamentos");
+  }
+
+  useEffect(() => {
+    if (!selectedSector) return;
+    setInputEquipmentValues((prev) => {
+      // Copy the previous state.
+      const merged = [...prev];
+
+      selectedSector.equipments?.forEach((equipment) => {
+        // Here we expect equipment.position to be in the format "sectorPosition.equipmentNumber"
+        // e.g. "1.2.3" where "3" is the equipment number.
+        const parts = equipment.position.split(".");
+        // Ensure the equipment's position has at least three parts.
+        if (parts.length < 3) return;
+        // Convert the last part (equipment number) to a 0-indexed value.
+        const pos = parseInt(parts[2], 10) - 1;
+        // If this position is beyond the current length, extend the array.
+        if (pos >= merged.length) {
+          const numToAdd = pos - merged.length + 1;
+          for (let i = 0; i < numToAdd; i++) {
+            // Push a default equipment object.
+            merged.push({
+              name: "",
+              tag: "",
+              type: "",
+              maker: "",
+              model: "",
+              year: "",
+              description: "",
+              photos: null,
+              id: "",
+              position: "", // This can be updated later.
+              sets: null,
+            });
+          }
+        }
+        // Place the equipment object at its proper index.
+        merged[pos] = equipment;
+      });
+      return merged;
+    });
+  }, [selectedSector?.equipments]);
+
+  useEffect(() => {
+    setEquipmentsArrayLength(inputEquipmentValues.length);
+    setEquipmentPages(Math.ceil(inputEquipmentValues.length / 6));
+  }, [inputEquipmentValues]);
 
   useEffect(() => {
     if (
@@ -280,16 +392,39 @@ export function EquipmentAccordion({
               <div
                 onClick={(e) => {
                   e.stopPropagation();
-                  setSelectedLayoutStep(4);
+                  const currentEquipments =
+                    layoutData.areas?.flatMap(
+                      (area) =>
+                        area.sectors?.flatMap(
+                          (sector) => sector.equipments || [],
+                        ) || [],
+                    ) || [];
+                  let newEquipments: EquipmentsProps[] = [];
+                  if (originalEquipments) {
+                    newEquipments = currentEquipments.filter(
+                      (equipment) =>
+                        !originalEquipments.find(
+                          (original) =>
+                            original.position === equipment.position,
+                        ),
+                    );
+                  } else {
+                    newEquipments = currentEquipments;
+                  }
+                  if (newEquipments.length > 0) {
+                    HandleCreateEquipment(newEquipments);
+                  } else {
+                    setSelectedLayoutStep(4);
+                  }
                 }}
                 className={cn(
                   "bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4",
-                  layoutData &&
-                    layoutData.areas &&
-                    layoutData.areas.find((area) =>
-                      area.sectors?.find((sector) => !sector.equipments),
-                    ) &&
-                    "pointer-events-none cursor-not-allowed opacity-50",
+                  // layoutData &&
+                  //   layoutData.areas &&
+                  //   layoutData.areas.find((area) =>
+                  //     area.sectors?.find((sector) => !sector.equipments),
+                  //   ) &&
+                  //   "pointer-events-none cursor-not-allowed opacity-50",
                 )}
               >
                 <span className="hidden md:block">Avançar 1.4</span>
@@ -368,8 +503,32 @@ export function EquipmentAccordion({
                     </PopoverContent>
                   </Popover>
                 </div>
-                <button className="text-primary flex h-10 items-center gap-2 rounded-lg border border-neutral-200 px-2 py-2 text-xs font-semibold md:h-12 md:px-4">
-                  Fotos do Equipamento
+                <button
+                  disabled={isUploadingFile}
+                  className={cn(
+                    "text-primary relative flex h-10 items-center gap-2 rounded-lg border border-neutral-200 px-2 py-2 text-xs font-semibold transition duration-300 md:h-12 md:px-4",
+                    fullFileUrl !== "" &&
+                      "bg-primary border-transparent text-white",
+                  )}
+                >
+                  <input
+                    ref={fileInputRef}
+                    className="absolute top-0 left-0 h-full w-full cursor-pointer bg-transparent opacity-0"
+                    type="file"
+                    multiple
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      handleUpload(file);
+                    }}
+                  />
+                  {isUploadingFile ? (
+                    <Loader2 className="w-4 animate-spin" />
+                  ) : fullFileUrl !== "" ? (
+                    "Fotos Inseridas"
+                  ) : (
+                    "Fotos do Equipamento"
+                  )}
                 </button>
               </div>
               <div className="col-span-2 grid grid-cols-2 gap-4">
@@ -600,121 +759,85 @@ export function EquipmentAccordion({
               </div>
               {[...Array(equipmentsArrayLength)]
                 .slice((currentEquipmentPage - 1) * 6, currentEquipmentPage * 6)
-                .map((item, index) => (
-                  <div key={index} className="flex flex-col gap-2">
-                    <span className="text-primary text-xs md:text-sm">
-                      Equipamento{" "}
-                      {currentEquipmentPage > 1
-                        ? (currentEquipmentPage - 1) * 6 + index + 1
-                        : index + 1}
-                    </span>
-                    <label
-                      onClick={() =>
-                        setSelectedEquipment(
-                          currentEquipmentPage > 1
-                            ? (currentEquipmentPage - 1) * 6 + index
-                            : index,
-                        )
-                      }
-                      className={cn(
-                        "relative flex h-10 items-center justify-end rounded-2xl px-2 md:h-12 md:px-4",
-                        isEquipmentFullyFilled(
-                          inputEquipmentValues[
-                            currentEquipmentPage > 1
-                              ? (currentEquipmentPage - 1) * 6 + index
-                              : index
-                          ],
-                        )
-                          ? "bg-primary"
-                          : "",
-                      )}
-                    >
-                      <input
+                .map((item, index) => {
+                  const stateIndex = (currentEquipmentPage - 1) * 6 + index;
+                  return (
+                    <div key={stateIndex} className="flex flex-col gap-2">
+                      <span className="text-primary text-xs md:text-sm">
+                        Equipamento {stateIndex + 1}
+                      </span>
+                      <label
+                        onClick={() => setSelectedEquipment(stateIndex)}
                         className={cn(
-                          "peer transparent absolute left-0 h-full w-[calc(100%-2rem)] px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
+                          "relative flex h-10 items-center justify-end rounded-2xl px-2 md:h-12 md:px-4",
                           isEquipmentFullyFilled(
-                            inputEquipmentValues[
-                              currentEquipmentPage > 1
-                                ? (currentEquipmentPage - 1) * 6 + index
-                                : index
-                            ],
+                            inputEquipmentValues[stateIndex],
                           )
-                            ? "text-white"
+                            ? "bg-primary"
                             : "",
                         )}
-                        placeholder="TAG do Equipamento"
-                        value={
-                          inputEquipmentValues[
-                            currentEquipmentPage > 1
-                              ? (currentEquipmentPage - 1) * 6 + index
-                              : index
-                          ].tag || ""
-                        }
-                        readOnly
-                      />
-                      <Image
-                        src="/icons/equipment.png"
-                        alt=""
-                        width={200}
-                        height={200}
-                        className={cn(
-                          "absolute h-max w-5 object-contain transition duration-200 peer-focus:translate-x-2 peer-focus:opacity-0",
-                          isEquipmentFullyFilled(
-                            inputEquipmentValues[
-                              currentEquipmentPage > 1
-                                ? (currentEquipmentPage - 1) * 6 + index
-                                : index
-                            ],
-                          )
-                            ? "opacity-0"
-                            : "peer-focus:translate-x-2 peer-focus:opacity-0",
-                        )}
-                      />
-                      <Image
-                        src={
-                          isEquipmentFullyFilled(
-                            inputEquipmentValues[
-                              currentEquipmentPage > 1
-                                ? (currentEquipmentPage - 1) * 6 + index
-                                : index
-                            ],
-                          )
-                            ? "/icons/checkCheckWhite.png"
-                            : "/icons/checkCheck.png"
-                        }
-                        alt=""
-                        width={200}
-                        height={200}
-                        className={cn(
-                          "absolute h-max w-5 -translate-x-2 object-contain opacity-0 transition duration-200 peer-focus:translate-x-0 peer-focus:opacity-100",
-                          isEquipmentFullyFilled(
-                            inputEquipmentValues[
-                              currentEquipmentPage > 1
-                                ? (currentEquipmentPage - 1) * 6 + index
-                                : index
-                            ],
-                          )
-                            ? "translate-x-0 opacity-100"
-                            : "-translate-x-2 opacity-0",
-                        )}
-                      />
-                      <div
-                        className={cn(
-                          "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
-                          isEquipmentFullyFilled(
-                            inputEquipmentValues[
-                              currentEquipmentPage > 1
-                                ? (currentEquipmentPage - 1) * 6 + index
-                                : index
-                            ],
-                          )
-                            ? "shadow-[0px_2px_7px_rgba(0,0,0,0.5)]"
-                            : "",
-                        )}
-                      />
-                    </label>
-                  </div>
-                ))}
+                      >
+                        <input
+                          className={cn(
+                            "peer transparent absolute left-0 h-full w-[calc(100%-2rem)] px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
+                            isEquipmentFullyFilled(
+                              inputEquipmentValues[stateIndex],
+                            )
+                              ? "text-white"
+                              : "",
+                          )}
+                          placeholder="TAG do Equipamento"
+                          value={inputEquipmentValues[stateIndex].tag || ""}
+                          readOnly
+                        />
+                        <Image
+                          src="/icons/equipment.png"
+                          alt=""
+                          width={200}
+                          height={200}
+                          className={cn(
+                            "absolute h-max w-5 object-contain transition duration-200 peer-focus:translate-x-2 peer-focus:opacity-0",
+                            isEquipmentFullyFilled(
+                              inputEquipmentValues[stateIndex],
+                            )
+                              ? "opacity-0"
+                              : "peer-focus:translate-x-2 peer-focus:opacity-0",
+                          )}
+                        />
+                        <Image
+                          src={
+                            isEquipmentFullyFilled(
+                              inputEquipmentValues[stateIndex],
+                            )
+                              ? "/icons/checkCheckWhite.png"
+                              : "/icons/checkCheck.png"
+                          }
+                          alt=""
+                          width={200}
+                          height={200}
+                          className={cn(
+                            "absolute h-max w-5 -translate-x-2 object-contain opacity-0 transition duration-200 peer-focus:translate-x-0 peer-focus:opacity-100",
+                            isEquipmentFullyFilled(
+                              inputEquipmentValues[stateIndex],
+                            )
+                              ? "translate-x-0 opacity-100"
+                              : "-translate-x-2 opacity-0",
+                          )}
+                        />
+                        <div
+                          className={cn(
+                            "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
+                            isEquipmentFullyFilled(
+                              inputEquipmentValues[stateIndex],
+                            )
+                              ? "shadow-[0px_2px_7px_rgba(0,0,0,0.5)]"
+                              : "",
+                          )}
+                        />
+                      </label>
+                    </div>
+                  );
+                })}
             </>
           ) : (
             <>
@@ -746,13 +869,17 @@ export function EquipmentAccordion({
                         }}
                         className={cn(
                           "relative flex h-10 cursor-pointer items-center justify-start rounded-2xl md:h-12",
-                          item.equipments && "bg-primary",
+                          item.equipments &&
+                            item.equipments.length !== 0 &&
+                            "bg-primary",
                         )}
                       >
                         <span
                           className={cn(
                             "bg-primary/20 text-primary flex h-10 w-10 items-center justify-center rounded-2xl p-1 font-bold md:h-12 md:w-12",
-                            item.equipments && "bg-white/20 text-white",
+                            item.equipments &&
+                              item.equipments.length !== 0 &&
+                              "bg-white/20 text-white",
                           )}
                         >
                           {item.position}
@@ -760,7 +887,9 @@ export function EquipmentAccordion({
                         <input
                           className={cn(
                             "peer transparent absolute right-0 h-full w-[calc(100%-2.5rem)] px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:w-[calc(100%-3rem)] md:px-4 md:text-sm",
-                            item.equipments && "text-white",
+                            item.equipments &&
+                              item.equipments.length !== 0 &&
+                              "text-white",
                           )}
                           placeholder="Nome da Área"
                           value={item.name}
@@ -771,6 +900,7 @@ export function EquipmentAccordion({
                           className={cn(
                             "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
                             item.equipments &&
+                              item.equipments.length !== 0 &&
                               "shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
                           )}
                         />

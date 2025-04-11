@@ -1,6 +1,11 @@
 "use client";
 
-import { AreaProps, LayoutTypeProps, SectorProps } from "@/@types/LayoutTypes";
+import {
+  AreaProps,
+  EquipmentsProps,
+  LayoutTypeProps,
+  SectorProps,
+} from "@/@types/LayoutTypes";
 import { createContext, useContext, useEffect, useState } from "react";
 import { useApiContext } from "./ApiContext";
 
@@ -17,8 +22,13 @@ interface LayoutContextProps {
   setOriginalSectors: React.Dispatch<
     React.SetStateAction<SectorProps[] | null>
   >;
+  originalEquipments: EquipmentsProps[] | null;
+  setOriginalEquipments: React.Dispatch<
+    React.SetStateAction<EquipmentsProps[] | null>
+  >;
   GetAreas: () => void;
   GetSectors: () => void;
+  GetEquipments: () => void;
 }
 
 const LayoutContext = createContext<LayoutContextProps | undefined>(undefined);
@@ -29,7 +39,7 @@ interface ProviderProps {
 
 export const LayoutContextProvider = ({ children }: ProviderProps) => {
   const { GetAPI } = useApiContext();
-  const [selectedLayoutStep, setSelectedLayoutStep] = useState(1);
+  const [selectedLayoutStep, setSelectedLayoutStep] = useState(3);
   const [layoutData, setLayoutData] = useState<LayoutTypeProps>({
     areas: null,
   });
@@ -37,7 +47,12 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
   const [originalSectors, setOriginalSectors] = useState<SectorProps[] | null>(
     null,
   );
+  const [originalEquipments, setOriginalEquipments] = useState<
+    EquipmentsProps[] | null
+  >(null);
   const [cipCount, setCipCount] = useState(1);
+
+  console.log("layoutData: ", layoutData);
 
   async function GetAreas() {
     const areas = await GetAPI("/area", true);
@@ -69,10 +84,58 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
     }
   }
 
+  async function GetEquipments() {
+    const equipments = await GetAPI("/equipment", true);
+    if (equipments.status === 200) {
+      // Assume equipments.body.equipments is an array of EquipmentsProps.
+      const fetchedEquipments: EquipmentsProps[] = equipments.body.equipments;
+
+      // Store all fetched equipments in originalEquipments.
+      setOriginalEquipments(fetchedEquipments);
+
+      // Now update layoutData by assigning each equipment to its proper sector.
+      setLayoutData((prevLayout) => {
+        if (!prevLayout.areas) return prevLayout;
+        const updatedAreas = prevLayout.areas.map((area) => {
+          // If the area has no sectors, nothing to update.
+          if (!area.sectors) return area;
+          const updatedSectors = area.sectors.map((sector) => {
+            // For each sector, filter the equipments whose positions belong to this sector.
+            const sectorEquipments = fetchedEquipments.filter((equipment) => {
+              if (!equipment.position) return false;
+              // Split the equipment.position.
+              const parts = equipment.position.split(".");
+              // We expect at least three parts, e.g. "1", "1", "1" for "1.1.1"
+              if (parts.length < 3) return false;
+              // Reconstruct the sector part of the equipment's position.
+              const equipmentSectorPosition = `${parts[0]}.${parts[1]}`;
+              // Return true if it matches the current sector's position.
+              return equipmentSectorPosition === sector.position;
+            });
+            return {
+              ...sector,
+              // Set the equipments only if there are any; otherwise, leave as null.
+              equipments: sectorEquipments.length > 0 ? sectorEquipments : null,
+            };
+          });
+          return {
+            ...area,
+            sectors: updatedSectors,
+          };
+        });
+        return {
+          ...prevLayout,
+          areas: updatedAreas,
+        };
+      });
+    }
+  }
+
   useEffect(() => {
     async function fetchData() {
       await GetAreas();
       await GetSectors();
+      await GetEquipments();
     }
     fetchData();
   }, []);
@@ -95,8 +158,11 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
         setOriginalAreas,
         originalSectors,
         setOriginalSectors,
+        originalEquipments,
+        setOriginalEquipments,
         GetAreas,
         GetSectors,
+        GetEquipments,
       }}
     >
       {children}
