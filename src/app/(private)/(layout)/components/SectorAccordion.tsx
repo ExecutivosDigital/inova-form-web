@@ -1,5 +1,5 @@
 "use client";
-import { AreaProps } from "@/@types/LayoutTypes";
+import { AreaProps, SectorProps } from "@/@types/LayoutTypes";
 import { CustomPagination } from "@/components/global/CustomPagination";
 import {
   AccordionContent,
@@ -12,11 +12,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/global/ui/popover";
+import { useApiContext } from "@/context/ApiContext";
 import { useLayoutContext } from "@/context/LayoutContext";
 import { cn } from "@/lib/utils";
 import { ArrowRight, ChevronLeft, Upload } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 import { v4 } from "uuid";
 
 interface SectorAccordionProps {
@@ -28,7 +30,9 @@ export function SectorAccordion({
   selectedLayoutStep,
   setSelectedLayoutStep,
 }: SectorAccordionProps) {
-  const { layoutData, setLayoutData } = useLayoutContext();
+  const { layoutData, setLayoutData, GetSectors, originalSectors } =
+    useLayoutContext();
+  const { PostAPI } = useApiContext();
   const [isImportHovered, setIsImportHovered] = useState(false);
   const [currentAreaPage, setCurrentAreaPage] = useState(1);
   const [areasPages, setAreasPages] = useState<number>(1);
@@ -44,67 +48,59 @@ export function SectorAccordion({
   const handleAddSector = () => {
     setSectorsArrayLength((prevLength) => prevLength + 1);
     setInputSectorValues((prev) => [...prev, ""]);
-    setSectorsPages((prevPages) =>
-      (sectorsArrayLength + 1) / 6 > prevPages ? prevPages + 1 : prevPages,
-    );
+    setSectorsPages(Math.ceil((sectorsArrayLength + 1) / 6));
   };
 
-  const handleInputChange = (index: number, value: string) => {
+  const handleSectorInputChange = (stateIndex: number, value: string) => {
     if (!selectedArea) return;
 
-    const sectorId =
-      currentSectorPage > 1
-        ? (currentSectorPage - 1) * 6 + index + 1
-        : index + 1;
+    // Compute the local sector number (1-indexed) and build a full position.
+    const sectorPosition = (stateIndex + 1).toString();
+    const fullPosition = `${selectedArea.position}.${sectorPosition}`;
 
-    const fullLocalId = `${selectedArea.localId}.${sectorId}`;
-
+    // Update the local input state.
     setInputSectorValues((prev) => {
-      const updatedInputs = [...prev];
-      updatedInputs[sectorId] = value;
-      return updatedInputs;
+      const updated = [...prev];
+      updated[stateIndex] = value;
+      return updated;
     });
 
+    // Update layoutData for the selected area.
     setLayoutData((prevLayout) => {
-      if (!prevLayout.areas) return prevLayout; // Ensure areas exist
+      if (!prevLayout.areas) return prevLayout;
 
       const updatedAreas = prevLayout.areas.map((area) => {
         if (area.id === selectedArea.id) {
           let updatedSectors = area.sectors ? [...area.sectors] : [];
-
+          // Look for an existing sector with this full position.
           const existingSectorIndex = updatedSectors.findIndex(
-            (sector) => sector.localId === fullLocalId.toString(),
+            (sector) => sector.position === fullPosition,
           );
 
           if (value === "") {
-            // Remove sector if input is empty
+            // Remove sector if input is empty.
             updatedSectors = updatedSectors.filter(
-              (sector) => sector.localId !== fullLocalId.toString(),
+              (sector) => sector.position !== fullPosition,
             );
-            return {
-              ...area,
-              sectors: updatedSectors.length > 0 ? updatedSectors : null,
-            };
-          }
-
-          if (existingSectorIndex !== -1) {
-            // If sector already exists, update its name
+          } else if (existingSectorIndex !== -1) {
+            // Update the sector name if it exists.
             updatedSectors[existingSectorIndex].name = value;
           } else {
-            // Otherwise, add a new sector
+            // Add a new sector otherwise.
             updatedSectors.push({
               name: value,
-              id: v4(),
-              localId: fullLocalId,
+              id: v4(), // make sure v4 is imported from uuid
+              position: fullPosition,
               equipments: null,
             });
           }
-
-          return { ...area, sectors: updatedSectors };
+          return {
+            ...area,
+            sectors: updatedSectors.length > 0 ? updatedSectors : null,
+          };
         }
-        return area; // Keep other areas unchanged
+        return area;
       });
-
       return { ...prevLayout, areas: updatedAreas };
     });
   };
@@ -113,30 +109,79 @@ export function SectorAccordion({
     setSelectedArea(area);
     setSectorsPages(1);
 
-    // Properly reset sector values
     if (area.sectors && area.sectors.length > 0) {
-      // Create a new array and preserve order
-      const updatedSectorValues = Array(area.sectors.length).fill("");
-      area.sectors.forEach((sector, index) => {
-        updatedSectorValues[index] = sector.name; // Preserve sector order
-      });
-
+      // Build an array from the selected area's sectors.
+      const updatedSectorValues = area.sectors.map((sector) => sector.name);
       setInputSectorValues(updatedSectorValues);
-      setSectorsArrayLength(area.sectors.length);
-      setSectorsPages((prevPages) =>
-        ((area.sectors ? area.sectors.length : 0) + 1) / 6 > prevPages
-          ? prevPages + 1
-          : prevPages,
-      );
+      setSectorsArrayLength(updatedSectorValues.length);
+      setSectorsPages(Math.ceil(updatedSectorValues.length / 6));
     } else {
-      setInputSectorValues(Array(5).fill("")); // Default empty values
-      setSectorsArrayLength(5);
+      // If no sectors exist for the selected area, default to 5 empty inputs.
+      const defaultLength = 5;
+      setInputSectorValues(Array(defaultLength).fill(""));
+      setSectorsArrayLength(defaultLength);
       setSectorsPages(1);
     }
 
     setCurrentSectorPage(1);
   };
 
+  async function HandleCreateSector(newSectors?: SectorProps[]) {
+    const currentSectors =
+      layoutData.areas?.flatMap((area) => area.sectors || []) || [];
+    const sectorsToSend = newSectors || currentSectors;
+
+    const newSectorResponse = await PostAPI(
+      "/sector/multi",
+      {
+        sectors: sectorsToSend.map((sector) => ({
+          name: sector.name,
+          position: sector.position,
+          areaId: layoutData.areas?.find(
+            (area) => area.position === sector.position.split(".")[0],
+          )?.id,
+        })),
+      },
+      true,
+    );
+
+    if (newSectorResponse.status === 200) {
+      toast.success("Setores cadastrados com sucesso");
+      await GetSectors(); // re-fetch areas from the API
+      return setSelectedLayoutStep(3);
+    }
+    return toast.error("Erro ao cadastrar Setores");
+  }
+
+  // Effect to merge persisted sectors from the selected area
+  useEffect(() => {
+    if (!selectedArea) return;
+    setInputSectorValues((prev) => {
+      const merged = [...prev];
+      selectedArea.sectors?.forEach((sector) => {
+        // Sector position expected in the format "areaPosition.sectorNumber"
+        const parts = sector.position.split(".");
+        if (parts.length < 2) return;
+        const pos = parseInt(parts[1], 10) - 1; // convert to 0-index
+        if (pos >= merged.length) {
+          const numToAdd = pos - merged.length + 1;
+          for (let i = 0; i < numToAdd; i++) {
+            merged.push("");
+          }
+        }
+        merged[pos] = sector.name;
+      });
+      return merged;
+    });
+  }, [selectedArea?.sectors]);
+
+  // Effect to update sectors pagination based on inputSectorValues.
+  useEffect(() => {
+    setSectorsArrayLength(inputSectorValues.length);
+    setSectorsPages(Math.ceil(inputSectorValues.length / 6));
+  }, [inputSectorValues]);
+
+  // (Optional) Update areas pages if needed when layoutData.areas changes.
   useEffect(() => {
     if (layoutData.areas) {
       setAreasPages(Math.ceil(layoutData.areas.length / 12));
@@ -186,14 +231,28 @@ export function SectorAccordion({
               <div
                 onClick={(e) => {
                   e.stopPropagation();
-                  setSelectedLayoutStep(3);
+                  const currentSectors =
+                    layoutData.areas?.flatMap((area) => area.sectors || []) ||
+                    [];
+                  let newSectors: SectorProps[] = [];
+                  if (originalSectors) {
+                    newSectors = currentSectors.filter(
+                      (sector) =>
+                        !originalSectors.find(
+                          (original) => original.position === sector.position,
+                        ),
+                    );
+                  } else {
+                    newSectors = currentSectors;
+                  }
+                  if (newSectors.length > 0) {
+                    HandleCreateSector(newSectors);
+                  } else {
+                    setSelectedLayoutStep(3);
+                  }
                 }}
                 className={cn(
                   "bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4",
-                  layoutData &&
-                    layoutData.areas &&
-                    layoutData.areas.find((area) => !area.sectors) &&
-                    "pointer-events-none cursor-not-allowed opacity-50",
                 )}
               >
                 <span className="hidden md:block">Avançar 1.3</span>
@@ -245,7 +304,7 @@ export function SectorAccordion({
                           "bg-white/20 text-white",
                         )}
                       >
-                        {selectedArea.localId}
+                        {selectedArea.position}
                       </span>
                       <input
                         className={cn(
@@ -256,7 +315,6 @@ export function SectorAccordion({
                         value={selectedArea.name}
                         disabled
                       />
-
                       <div
                         className={cn(
                           "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
@@ -273,104 +331,71 @@ export function SectorAccordion({
               </div>
               {[...Array(sectorsArrayLength)]
                 .slice((currentSectorPage - 1) * 6, currentSectorPage * 6)
-                .map((item, index) => (
-                  <div key={index} className="flex flex-col gap-2">
-                    <span className="text-primary text-sm">
-                      Setor{" "}
-                      {currentSectorPage > 1
-                        ? (currentSectorPage - 1) * 6 + index + 1
-                        : index + 1}
-                    </span>
-                    <label
-                      className={cn(
-                        "relative flex h-10 items-center justify-end rounded-2xl px-2 md:h-12 md:px-4",
-                        inputSectorValues[
-                          currentSectorPage > 1
-                            ? (currentSectorPage - 1) * 6 + index + 1
-                            : index + 1
-                        ]
-                          ? "bg-primary"
-                          : "",
-                      )}
-                    >
-                      <input
+                .map((item, index) => {
+                  // Compute the global index for this input.
+                  const stateIndex = (currentSectorPage - 1) * 6 + index;
+                  return (
+                    <div key={stateIndex} className="flex flex-col gap-2">
+                      <span className="text-primary text-sm">
+                        Setor {stateIndex + 1}
+                      </span>
+                      <label
                         className={cn(
-                          "peer transparent absolute left-0 h-full w-[calc(100%-2rem)] px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
-                          inputSectorValues[
-                            currentSectorPage > 1
-                              ? (currentSectorPage - 1) * 6 + index + 1
-                              : index + 1
-                          ]
-                            ? "text-white"
-                            : "",
+                          "relative flex h-10 items-center justify-end rounded-2xl px-2 md:h-12 md:px-4",
+                          inputSectorValues[stateIndex] ? "bg-primary" : "",
                         )}
-                        placeholder="Nome do Setor"
-                        value={
-                          inputSectorValues[
-                            currentSectorPage > 1
-                              ? (currentSectorPage - 1) * 6 + index + 1
-                              : index + 1
-                          ] || ""
-                        }
-                        onChange={(e) =>
-                          handleInputChange(index, e.target.value)
-                        }
-                      />
-                      <Image
-                        src="/icons/sector.png"
-                        alt=""
-                        width={200}
-                        height={200}
-                        className={cn(
-                          "absolute h-max w-5 object-contain transition duration-200 peer-focus:translate-x-2 peer-focus:opacity-0",
-                          inputSectorValues[
-                            currentSectorPage > 1
-                              ? (currentSectorPage - 1) * 6 + index + 1
-                              : index + 1
-                          ]
-                            ? "opacity-0"
-                            : "peer-focus:translate-x-2 peer-focus:opacity-0",
-                        )}
-                      />
-                      <Image
-                        src={
-                          inputSectorValues[
-                            currentSectorPage > 1
-                              ? (currentSectorPage - 1) * 6 + index + 1
-                              : index + 1
-                          ]
-                            ? "/icons/checkCheckWhite.png"
-                            : "/icons/checkCheck.png"
-                        }
-                        alt=""
-                        width={200}
-                        height={200}
-                        className={cn(
-                          "absolute h-max w-5 -translate-x-2 object-contain opacity-0 transition duration-200 peer-focus:translate-x-0 peer-focus:opacity-100",
-                          inputSectorValues[
-                            currentSectorPage > 1
-                              ? (currentSectorPage - 1) * 6 + index + 1
-                              : index + 1
-                          ]
-                            ? "translate-x-0 opacity-100"
-                            : "-translate-x-2 opacity-0",
-                        )}
-                      />
-                      <div
-                        className={cn(
-                          "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
-                          inputSectorValues[
-                            currentSectorPage > 1
-                              ? (currentSectorPage - 1) * 6 + index + 1
-                              : index + 1
-                          ]
-                            ? "shadow-[0px_2px_7px_rgba(0,0,0,0.5)]"
-                            : "",
-                        )}
-                      />
-                    </label>
-                  </div>
-                ))}
+                      >
+                        <input
+                          className={cn(
+                            "peer transparent absolute left-0 h-full w-[calc(100%-2rem)] px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
+                            inputSectorValues[stateIndex] ? "text-white" : "",
+                          )}
+                          placeholder="Nome do Setor"
+                          value={inputSectorValues[stateIndex] || ""}
+                          onChange={(e) =>
+                            handleSectorInputChange(stateIndex, e.target.value)
+                          }
+                        />
+                        <Image
+                          src="/icons/sector.png"
+                          alt=""
+                          width={200}
+                          height={200}
+                          className={cn(
+                            "absolute h-max w-5 object-contain transition duration-200 peer-focus:translate-x-2 peer-focus:opacity-0",
+                            inputSectorValues[stateIndex]
+                              ? "opacity-0"
+                              : "peer-focus:translate-x-2 peer-focus:opacity-0",
+                          )}
+                        />
+                        <Image
+                          src={
+                            inputSectorValues[stateIndex]
+                              ? "/icons/checkCheckWhite.png"
+                              : "/icons/checkCheck.png"
+                          }
+                          alt=""
+                          width={200}
+                          height={200}
+                          className={cn(
+                            "absolute h-max w-5 -translate-x-2 object-contain opacity-0 transition duration-200 peer-focus:translate-x-0 peer-focus:opacity-100",
+                            inputSectorValues[stateIndex]
+                              ? "translate-x-0 opacity-100"
+                              : "-translate-x-2 opacity-0",
+                          )}
+                        />
+                        <div
+                          className={cn(
+                            "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
+                            inputSectorValues[stateIndex]
+                              ? "shadow-[0px_2px_7px_rgba(0,0,0,0.5)]"
+                              : "",
+                          )}
+                        />{" "}
+                      </label>
+                    </div>
+                  );
+                })}
             </>
           ) : (
             layoutData.areas &&
@@ -385,13 +410,15 @@ export function SectorAccordion({
                     }}
                     className={cn(
                       "relative flex h-10 cursor-pointer items-center justify-start rounded-2xl px-1 md:h-12",
-                      item.sectors && "bg-primary",
+                      item.sectors && item.sectors.length !== 0 && "bg-primary",
                     )}
                   >
                     <span
                       className={cn(
                         "bg-primary/20 text-primary flex h-6 w-6 items-center justify-center rounded-full p-1 font-bold md:h-10 md:w-10",
-                        item.sectors && "bg-white/20 text-white",
+                        item.sectors &&
+                          item.sectors.length !== 0 &&
+                          "bg-white/20 text-white",
                       )}
                     >
                       {index + 1}.
@@ -399,17 +426,20 @@ export function SectorAccordion({
                     <input
                       className={cn(
                         "peer transparent absolute right-0 h-full w-[calc(100%-1.5rem)] px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:w-[calc(100%-3rem)] md:px-4 md:text-sm",
-                        item.sectors && "text-white",
+                        item.sectors &&
+                          item.sectors.length !== 0 &&
+                          "text-white",
                       )}
                       placeholder="Nome da Área"
                       value={item.name}
                       disabled
                     />
-
                     <div
                       className={cn(
                         "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
-                        item.sectors && "shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
+                        item.sectors &&
+                          item.sectors.length !== 0 &&
+                          "shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
                       )}
                     />
                   </label>
@@ -429,8 +459,7 @@ export function SectorAccordion({
           >
             <p className="text-xs md:text-sm">+</p>
             <p className="hidden md:block">
-              Cadastrar {""}
-              {selectedArea ? " Setor" : " Área"}
+              Cadastrar {selectedArea ? " Setor" : " Área"}
             </p>
           </button>
         </div>
