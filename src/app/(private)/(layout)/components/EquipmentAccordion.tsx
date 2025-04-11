@@ -40,6 +40,11 @@ interface EquipmentAccordionProps {
   setSelectedLayoutStep: React.Dispatch<React.SetStateAction<number>>;
 }
 
+interface FilesProps {
+  url: string;
+  fullUrl: string;
+}
+
 export function EquipmentAccordion({
   selectedLayoutStep,
   setSelectedLayoutStep,
@@ -79,8 +84,7 @@ export function EquipmentAccordion({
   );
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
-  const [fileUrl, setFileUrl] = useState("");
-  const [fullFileUrl, setFullFileUrl] = useState("");
+  const [files, setFiles] = useState<FilesProps[]>([]);
 
   const handleAddEquipment = () => {
     setEquipmentsArrayLength((prevLength) => prevLength + 1);
@@ -220,15 +224,86 @@ export function EquipmentAccordion({
 
   async function handleUpload(file: File) {
     const formData = new FormData();
-    // Substitui espaços em branco no nome do arquivo por _
+    // Sanitize the file name by replacing spaces with dashes.
     const sanitizedFileName = file.name.replace(/\s+/g, "-");
     formData.append("file", file, sanitizedFileName);
     setIsUploadingFile(true);
+
     const response = await PostAPI("/file", formData, true);
-    // Verifica se a resposta contém a URL do arquivo
-    if (response && response.body && response.body.url) {
-      setFileUrl(response.body.url);
-      setFullFileUrl(response.body.fullUrl);
+    console.log("response: ", response);
+
+    if (
+      response &&
+      response.body &&
+      response.body.url &&
+      response.body.fullUrl
+    ) {
+      const uploadedUrl = response.body.url;
+      const uploadedFullUrl = response.body.fullUrl;
+      // Update layoutData only if an equipment is currently selected.
+      if (selectedSector !== null && selectedEquipment !== null) {
+        // Compute the full position for the equipment, e.g. "1.2.1"
+        const fullposition = `${selectedSector.position}.${selectedEquipment + 1}`;
+
+        setLayoutData((prevLayout) => {
+          if (!prevLayout.areas) return prevLayout;
+
+          const updatedAreas = prevLayout.areas.map((area) => {
+            // Only update areas that have sectors.
+            if (!area.sectors) return area;
+            const updatedSectors = area.sectors.map((sector) => {
+              // Only update the sector matching the selected sector.
+              if (sector.id !== selectedSector.id) {
+                return sector;
+              }
+              // Clone the existing equipments array or create a new one.
+              const updatedEquipments = sector.equipments
+                ? [...sector.equipments]
+                : [];
+              // Find the equipment with the matching full position.
+              const eqIndex = updatedEquipments.findIndex(
+                (eq) => eq.position === fullposition,
+              );
+
+              if (eqIndex !== -1) {
+                // Equipment exists: update its photos array.
+                const currentEquipment = updatedEquipments[eqIndex];
+                // If photos already exist, copy them; otherwise, start with an empty array.
+                const updatedPhotos = currentEquipment.photos
+                  ? [...currentEquipment.photos]
+                  : [];
+                // Push the new photo object.
+                updatedPhotos.push({
+                  url: uploadedUrl,
+                  fullUrl: uploadedFullUrl,
+                });
+                updatedEquipments[eqIndex] = {
+                  ...currentEquipment,
+                  photos: updatedPhotos,
+                };
+              } else {
+                // Equipment does not exist: create a new one.
+                updatedEquipments.push({
+                  name: "",
+                  tag: "",
+                  type: "",
+                  maker: "",
+                  model: "",
+                  year: "",
+                  description: "",
+                  photos: [{ url: uploadedUrl, fullUrl: uploadedFullUrl }],
+                  id: v4(),
+                  position: fullposition,
+                  sets: null,
+                });
+              }
+              return { ...sector, equipments: updatedEquipments };
+            });
+            return { ...area, sectors: updatedSectors };
+          });
+          return { ...prevLayout, areas: updatedAreas };
+        });
+      }
       setIsUploadingFile(false);
       return response.body.url;
     } else {
@@ -237,6 +312,8 @@ export function EquipmentAccordion({
       return null;
     }
   }
+
+  console.log("files: ", files);
 
   async function HandleCreateEquipment(newEquipments?: EquipmentsProps[]) {
     // If no new equipments are provided, get them by flattening the equipments from all sectors in all areas.
@@ -265,6 +342,7 @@ export function EquipmentAccordion({
             // Get the sector's id, or leave it as an empty string if not found.
             sectorId = sector?.id as string;
           }
+
           return {
             name: equipment?.name,
             tag: equipment?.tag,
@@ -275,17 +353,13 @@ export function EquipmentAccordion({
             description: equipment?.description,
             position: equipment?.position,
             sectorId,
-            photos: [
-              {
-                url: fileUrl,
-                fullUrl: fullFileUrl,
-              },
-            ],
+            photos: equipment?.photos,
           };
         }),
       },
       true,
     );
+    console.log("newEquipmentResponse: ", newEquipmentResponse);
     if (newEquipmentResponse.status === 200) {
       toast.success("Equipamentos cadastrados com sucesso");
       await GetEquipments(); // re-fetch areas from the API
@@ -507,7 +581,7 @@ export function EquipmentAccordion({
                   disabled={isUploadingFile}
                   className={cn(
                     "text-primary relative flex h-10 items-center gap-2 rounded-lg border border-neutral-200 px-2 py-2 text-xs font-semibold transition duration-300 md:h-12 md:px-4",
-                    fullFileUrl !== "" &&
+                    files.length > 0 &&
                       "bg-primary border-transparent text-white",
                   )}
                 >
@@ -517,14 +591,16 @@ export function EquipmentAccordion({
                     type="file"
                     multiple
                     onChange={(e) => {
-                      const file = e.target.files?.[0];
+                      const file = e.target.files;
                       if (!file) return;
-                      handleUpload(file);
+                      for (let i = 0; i < file.length; i++) {
+                        handleUpload(file[i]);
+                      }
                     }}
                   />
                   {isUploadingFile ? (
                     <Loader2 className="w-4 animate-spin" />
-                  ) : fullFileUrl !== "" ? (
+                  ) : files.length > 0 ? (
                     "Fotos Inseridas"
                   ) : (
                     "Fotos do Equipamento"
@@ -688,7 +764,10 @@ export function EquipmentAccordion({
                 </div>
                 <div className="flex h-10 items-center justify-end gap-4 md:h-12">
                   <button
-                    onClick={() => setSelectedEquipment(null)}
+                    onClick={() => {
+                      setSelectedEquipment(null);
+                      setFiles([]);
+                    }}
                     className="h-10 w-full rounded-xl bg-green-500 p-2 text-sm text-white shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] md:w-2/5"
                   >
                     Salvar

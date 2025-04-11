@@ -29,7 +29,12 @@ export interface EquipmentsProps {
   model: string;
   year: string;
   description: string;
-  photos: string[] | null;
+  photos:
+    | {
+        url: string;
+        fullUrl: string;
+      }[]
+    | null;
   id: string;
   position: string;
   sets: SetProps[] | null;
