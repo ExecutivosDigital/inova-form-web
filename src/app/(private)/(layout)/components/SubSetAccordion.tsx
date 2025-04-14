@@ -255,7 +255,6 @@ export function SubSetAccordion({
 
             // Get the sector's id, or leave it as an empty string if not found.
             setId = set?.id as string;
-            console.log("setId: ", setId);
           }
 
           return {
@@ -268,11 +267,11 @@ export function SubSetAccordion({
       },
       true,
     );
-    console.log("newSubSetResponse: ", newSubSetResponse);
+
     if (newSubSetResponse.status === 200) {
       toast.success("Subconjuntos cadastrados com sucesso");
       await GetSubSets(); // re-fetch areas from the API
-      return setSelectedLayoutStep(5);
+      return setSelectedLayoutStep(6);
     }
     return toast.error("Erro ao cadastrar Subconjuntos");
   }

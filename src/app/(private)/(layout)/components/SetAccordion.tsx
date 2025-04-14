@@ -231,7 +231,6 @@ export function SetAccordion({
 
             // Get the sector's id, or leave it as an empty string if not found.
             equipmentId = equipment?.id as string;
-            console.log("equipmentId: ", equipmentId);
           }
 
           return {
@@ -244,7 +243,6 @@ export function SetAccordion({
       },
       true,
     );
-    console.log("newSetResponse: ", newSetResponse);
     if (newSetResponse.status === 200) {
       toast.success("Conjuntos cadastrados com sucesso");
       await GetSets(); // re-fetch areas from the API
