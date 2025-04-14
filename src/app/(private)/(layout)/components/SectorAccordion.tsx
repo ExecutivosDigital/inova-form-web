@@ -1,6 +1,7 @@
 "use client";
 import { AreaProps, SectorProps } from "@/@types/LayoutTypes";
 import { CustomPagination } from "@/components/global/CustomPagination";
+import { Skeleton } from "@/components/global/Skeleton";
 import {
   AccordionContent,
   AccordionItem,
@@ -15,7 +16,7 @@ import {
 import { useApiContext } from "@/context/ApiContext";
 import { useLayoutContext } from "@/context/LayoutContext";
 import { cn } from "@/lib/utils";
-import { ArrowRight, ChevronLeft, Upload } from "lucide-react";
+import { ArrowRight, ChevronLeft, Loader2, Upload } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
@@ -30,8 +31,13 @@ export function SectorAccordion({
   selectedLayoutStep,
   setSelectedLayoutStep,
 }: SectorAccordionProps) {
-  const { layoutData, setLayoutData, GetSectors, originalSectors } =
-    useLayoutContext();
+  const {
+    layoutData,
+    setLayoutData,
+    GetSectors,
+    originalSectors,
+    isGettingData,
+  } = useLayoutContext();
   const { PostAPI } = useApiContext();
   const [isImportHovered, setIsImportHovered] = useState(false);
   const [currentAreaPage, setCurrentAreaPage] = useState(1);
@@ -44,6 +50,7 @@ export function SectorAccordion({
   const [sectorsPages, setSectorsPages] = useState<number>(1);
   const [currentSectorPage, setCurrentSectorPage] = useState(1);
   const [isAreaNameHovered, setIsAreaNameHovered] = useState(false);
+  const [isCreatingSectors, setIsCreatingSectors] = useState(false);
 
   const handleAddSector = () => {
     setSectorsArrayLength((prevLength) => prevLength + 1);
@@ -127,6 +134,7 @@ export function SectorAccordion({
   };
 
   async function HandleCreateSector(newSectors?: SectorProps[]) {
+    setIsCreatingSectors(true);
     const currentSectors =
       layoutData.areas?.flatMap((area) => area.sectors || []) || [];
     const sectorsToSend = newSectors || currentSectors;
@@ -148,9 +156,11 @@ export function SectorAccordion({
     if (newSectorResponse.status === 200) {
       toast.success("Setores cadastrados com sucesso");
       await GetSectors(); // re-fetch areas from the API
-      return setSelectedLayoutStep(3);
+      setSelectedLayoutStep(3);
+      return setIsCreatingSectors(false);
     }
-    return toast.error("Erro ao cadastrar Setores");
+    toast.error("Erro ao cadastrar Setores");
+    return setIsCreatingSectors(false);
   }
 
   // Effect to merge persisted sectors from the selected area
@@ -191,76 +201,92 @@ export function SectorAccordion({
   return (
     <AccordionItem value="2" onClick={() => setSelectedLayoutStep(2)}>
       <AccordionTrigger arrow>
-        <div className="flex w-full items-center justify-between">
-          <div className="text-primary flex items-center gap-2 text-base font-bold md:gap-4 md:text-2xl">
-            <span>1.2</span>
-            <div className="flex flex-col">
-              <span className="leading-6">Cadastramento de Setores</span>
-              <span
-                className={cn(
-                  "w-max text-xs font-normal text-neutral-500 md:text-sm",
-                  selectedLayoutStep !== 2 && "hidden",
-                )}
-              >
-                O que é um Setor? Explicitar
-              </span>
-            </div>
-          </div>
-          {selectedLayoutStep === 2 && !selectedArea && (
-            <div className="flex items-center gap-4">
-              <Popover open={isImportHovered} onOpenChange={setIsImportHovered}>
-                <PopoverTrigger
-                  asChild
-                  onMouseEnter={() => setIsImportHovered(true)}
-                  onMouseLeave={() => setIsImportHovered(false)}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsImportHovered(false);
-                  }}
-                  onBlur={() => setIsImportHovered(false)}
+        {isGettingData ? (
+          <Skeleton className="h-10" />
+        ) : (
+          <div className="flex w-full items-center justify-between">
+            <div className="text-primary flex items-center gap-2 text-base font-bold md:gap-4 md:text-2xl">
+              <span>1.2</span>
+              <div className="flex flex-col">
+                <span className="leading-6">Cadastramento de Setores</span>
+                <span
+                  className={cn(
+                    "w-max text-xs font-normal text-neutral-500 md:text-sm",
+                    selectedLayoutStep !== 2 && "hidden",
+                  )}
                 >
-                  <div className="bg-primary flex h-6 items-center gap-2 rounded-full p-1 text-sm font-semibold text-white md:h-10 md:p-2">
-                    <Upload className="h-4 md:h-8" />
-                  </div>
-                </PopoverTrigger>
-                <PopoverContent className="w-max bg-white p-1 text-sm">
-                  <PopoverArrow className="fill-neutral-300" />
-                  <span>Importar Planilhas</span>
-                </PopoverContent>
-              </Popover>
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const currentSectors =
-                    layoutData.areas?.flatMap((area) => area.sectors || []) ||
-                    [];
-                  let newSectors: SectorProps[] = [];
-                  if (originalSectors) {
-                    newSectors = currentSectors.filter(
-                      (sector) =>
-                        !originalSectors.find(
-                          (original) => original.position === sector.position,
-                        ),
-                    );
-                  } else {
-                    newSectors = currentSectors;
-                  }
-                  if (newSectors.length > 0) {
-                    HandleCreateSector(newSectors);
-                  } else {
-                    setSelectedLayoutStep(3);
-                  }
-                }}
-                className={cn(
-                  "bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4",
-                )}
-              >
-                <span className="hidden md:block">Avançar 1.3</span>
-                <ArrowRight className="h-4 md:h-8" />
+                  O que é um Setor? Explicitar
+                </span>
               </div>
             </div>
-          )}
-        </div>
+            {selectedLayoutStep === 2 && !selectedArea && (
+              <div className="flex items-center gap-4">
+                <Popover
+                  open={isImportHovered}
+                  onOpenChange={setIsImportHovered}
+                >
+                  <PopoverTrigger
+                    asChild
+                    onMouseEnter={() => setIsImportHovered(true)}
+                    onMouseLeave={() => setIsImportHovered(false)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsImportHovered(false);
+                    }}
+                    onBlur={() => setIsImportHovered(false)}
+                  >
+                    <div className="bg-primary flex h-6 items-center gap-2 rounded-full p-1 text-sm font-semibold text-white md:h-10 md:p-2">
+                      <Upload className="h-4 md:h-8" />
+                    </div>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-max bg-white p-1 text-sm">
+                    <PopoverArrow className="fill-neutral-300" />
+                    <span>Importar Planilhas</span>
+                  </PopoverContent>
+                </Popover>
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const currentSectors =
+                      layoutData.areas?.flatMap((area) => area.sectors || []) ||
+                      [];
+                    let newSectors: SectorProps[] = [];
+                    if (originalSectors) {
+                      newSectors = currentSectors.filter(
+                        (sector) =>
+                          !originalSectors.find(
+                            (original) => original.position === sector.position,
+                          ),
+                      );
+                    } else {
+                      newSectors = currentSectors;
+                    }
+                    if (newSectors.length > 0) {
+                      HandleCreateSector(newSectors);
+                    } else {
+                      setSelectedLayoutStep(3);
+                    }
+                  }}
+                  className={cn(
+                    "bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4",
+                  )}
+                >
+                  {isCreatingSectors ? (
+                    <>
+                      <span className="hidden md:block">Salvando...</span>
+                      <Loader2 className="h-4 animate-spin md:h-8" />
+                    </>
+                  ) : (
+                    <>
+                      <span className="hidden md:block">Avançar 1.3</span>
+                      <ArrowRight className="h-4 md:h-8" />
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </AccordionTrigger>
       <AccordionContent>
         <div
@@ -269,7 +295,13 @@ export function SectorAccordion({
             selectedArea && "grid-cols-3",
           )}
         >
-          {selectedArea ? (
+          {isGettingData ? (
+            [...Array(12)].map((item, index) => (
+              <div key={index} className="flex flex-col gap-2">
+                <Skeleton />
+              </div>
+            ))
+          ) : selectedArea ? (
             <>
               <div className="col-span-3 flex items-center gap-2">
                 <button
@@ -446,30 +478,38 @@ export function SectorAccordion({
                 </div>
               ))
           )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!selectedArea) {
-                setSelectedLayoutStep(1);
-              } else {
-                handleAddSector();
-              }
-            }}
-            className="bg-primary flex h-10 w-full items-center justify-center gap-1 self-end rounded-full px-1 font-bold text-white md:px-4"
-          >
-            <p className="text-xs md:text-sm">+</p>
-            <p className="hidden md:block">
-              Cadastrar {selectedArea ? " Setor" : " Área"}
-            </p>
-          </button>
+          {isGettingData ? (
+            <Skeleton />
+          ) : (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!selectedArea) {
+                  setSelectedLayoutStep(1);
+                } else {
+                  handleAddSector();
+                }
+              }}
+              className="bg-primary flex h-10 w-full items-center justify-center gap-1 self-end rounded-full px-1 font-bold text-white md:px-4"
+            >
+              <p className="text-xs md:text-sm">+</p>
+              <p className="hidden md:block">
+                Cadastrar {selectedArea ? " Setor" : " Área"}
+              </p>
+            </button>
+          )}
         </div>
-        <CustomPagination
-          currentPage={selectedArea ? currentSectorPage : currentAreaPage}
-          setCurrentPage={
-            selectedArea ? setCurrentSectorPage : setCurrentAreaPage
-          }
-          pages={selectedArea ? sectorsPages : areasPages}
-        />
+        {isGettingData ? (
+          <Skeleton className="ml-auto w-80" />
+        ) : (
+          <CustomPagination
+            currentPage={selectedArea ? currentSectorPage : currentAreaPage}
+            setCurrentPage={
+              selectedArea ? setCurrentSectorPage : setCurrentAreaPage
+            }
+            pages={selectedArea ? sectorsPages : areasPages}
+          />
+        )}
       </AccordionContent>
     </AccordionItem>
   );

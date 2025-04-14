@@ -1,6 +1,7 @@
 "use client";
 import { EquipmentsProps, SectorProps } from "@/@types/LayoutTypes";
 import { CustomPagination } from "@/components/global/CustomPagination";
+import { Skeleton } from "@/components/global/Skeleton";
 import {
   AccordionContent,
   AccordionItem,
@@ -51,6 +52,7 @@ export function EquipmentAccordion({
     originalEquipments,
     query,
     setQuery,
+    isGettingData,
   } = useLayoutContext();
   const { PostAPI } = useApiContext();
   const [isImportHovered, setIsImportHovered] = useState(false);
@@ -85,6 +87,7 @@ export function EquipmentAccordion({
   );
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [isCreatingEquipments, setIsCreatingEquipments] = useState(false);
 
   const handleAddEquipment = () => {
     setEquipmentsArrayLength((prevLength) => prevLength + 1);
@@ -317,6 +320,7 @@ export function EquipmentAccordion({
   }
 
   async function HandleCreateEquipment(newEquipments?: EquipmentsProps[]) {
+    setIsCreatingEquipments(true);
     // If no new equipments are provided, get them by flattening the equipments from all sectors in all areas.
     const equipmentsToSend =
       newEquipments ||
@@ -363,9 +367,11 @@ export function EquipmentAccordion({
     if (newEquipmentResponse.status === 200) {
       toast.success("Equipamentos cadastrados com sucesso");
       await GetEquipments(); // re-fetch areas from the API
-      return setSelectedLayoutStep(4);
+      setSelectedLayoutStep(4);
+      return setIsCreatingEquipments(false);
     }
-    return toast.error("Erro ao cadastrar Equipamentos");
+    toast.error("Erro ao cadastrar Equipamentos");
+    return setIsCreatingEquipments(false);
   }
 
   useEffect(() => {
@@ -466,87 +472,103 @@ export function EquipmentAccordion({
   return (
     <AccordionItem value="3" onClick={() => setSelectedLayoutStep(3)}>
       <AccordionTrigger arrow>
-        <div className="flex w-full items-center justify-between">
-          <div className="text-primary flex items-center gap-2 text-base font-bold md:gap-4 md:text-2xl">
-            <span>1.3</span>
-            <div className="flex flex-col">
-              <span className="leading-6">Cadastramento de Equipamentos</span>
-              <span
-                className={cn(
-                  "w-max text-xs font-normal text-neutral-500 md:text-sm",
-                  selectedLayoutStep !== 3 && "hidden",
-                )}
-              >
-                O que é um Equipamento? Explicitar
-              </span>
-            </div>
-          </div>
-          {selectedLayoutStep === 3 && selectedEquipment === null && (
-            <div className="flex items-center gap-4">
-              <Popover open={isImportHovered} onOpenChange={setIsImportHovered}>
-                <PopoverTrigger
-                  asChild
-                  onMouseEnter={() => setIsImportHovered(true)}
-                  onMouseLeave={() => setIsImportHovered(false)}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsImportHovered(false);
-                  }}
-                  onBlur={() => setIsImportHovered(false)}
+        {isGettingData ? (
+          <Skeleton className="h-10" />
+        ) : (
+          <div className="flex w-full items-center justify-between">
+            <div className="text-primary flex items-center gap-2 text-base font-bold md:gap-4 md:text-2xl">
+              <span>1.3</span>
+              <div className="flex flex-col">
+                <span className="leading-6">Cadastramento de Equipamentos</span>
+                <span
+                  className={cn(
+                    "w-max text-xs font-normal text-neutral-500 md:text-sm",
+                    selectedLayoutStep !== 3 && "hidden",
+                  )}
                 >
-                  <div className="bg-primary flex h-6 items-center gap-2 rounded-full p-1 text-sm font-semibold text-white md:h-10 md:p-2">
-                    <Upload className="h-4 md:h-8" />
-                  </div>
-                </PopoverTrigger>
-                <PopoverContent className="w-max bg-white p-1 text-sm">
-                  <PopoverArrow className="fill-neutral-300" />
-                  <span>Importar Planilhas</span>
-                </PopoverContent>
-              </Popover>
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const currentEquipments =
-                    layoutData.areas?.flatMap(
-                      (area) =>
-                        area.sectors?.flatMap(
-                          (sector) => sector.equipments || [],
-                        ) || [],
-                    ) || [];
-                  let newEquipments: EquipmentsProps[] = [];
-                  if (originalEquipments) {
-                    newEquipments = currentEquipments.filter(
-                      (equipment) =>
-                        !originalEquipments.find(
-                          (original) =>
-                            original.position === equipment.position,
-                        ),
-                    );
-                  } else {
-                    newEquipments = currentEquipments;
-                  }
-                  if (newEquipments.length > 0) {
-                    HandleCreateEquipment(newEquipments);
-                  } else {
-                    setSelectedLayoutStep(4);
-                  }
-                }}
-                className={cn(
-                  "bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4",
-                  // layoutData &&
-                  //   layoutData.areas &&
-                  //   layoutData.areas.find((area) =>
-                  //     area.sectors?.find((sector) => !sector.equipments),
-                  //   ) &&
-                  //   "pointer-events-none cursor-not-allowed opacity-50",
-                )}
-              >
-                <span className="hidden md:block">Avançar 1.4</span>
-                <ArrowRight className="h-4 md:h-8" />
+                  O que é um Equipamento? Explicitar
+                </span>
               </div>
             </div>
-          )}
-        </div>
+            {selectedLayoutStep === 3 && selectedEquipment === null && (
+              <div className="flex items-center gap-4">
+                <Popover
+                  open={isImportHovered}
+                  onOpenChange={setIsImportHovered}
+                >
+                  <PopoverTrigger
+                    asChild
+                    onMouseEnter={() => setIsImportHovered(true)}
+                    onMouseLeave={() => setIsImportHovered(false)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsImportHovered(false);
+                    }}
+                    onBlur={() => setIsImportHovered(false)}
+                  >
+                    <div className="bg-primary flex h-6 items-center gap-2 rounded-full p-1 text-sm font-semibold text-white md:h-10 md:p-2">
+                      <Upload className="h-4 md:h-8" />
+                    </div>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-max bg-white p-1 text-sm">
+                    <PopoverArrow className="fill-neutral-300" />
+                    <span>Importar Planilhas</span>
+                  </PopoverContent>
+                </Popover>
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const currentEquipments =
+                      layoutData.areas?.flatMap(
+                        (area) =>
+                          area.sectors?.flatMap(
+                            (sector) => sector.equipments || [],
+                          ) || [],
+                      ) || [];
+                    let newEquipments: EquipmentsProps[] = [];
+                    if (originalEquipments) {
+                      newEquipments = currentEquipments.filter(
+                        (equipment) =>
+                          !originalEquipments.find(
+                            (original) =>
+                              original.position === equipment.position,
+                          ),
+                      );
+                    } else {
+                      newEquipments = currentEquipments;
+                    }
+                    if (newEquipments.length > 0) {
+                      HandleCreateEquipment(newEquipments);
+                    } else {
+                      setSelectedLayoutStep(4);
+                    }
+                  }}
+                  className={cn(
+                    "bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4",
+                    // layoutData &&
+                    //   layoutData.areas &&
+                    //   layoutData.areas.find((area) =>
+                    //     area.sectors?.find((sector) => !sector.equipments),
+                    //   ) &&
+                    //   "pointer-events-none cursor-not-allowed opacity-50",
+                  )}
+                >
+                  {isCreatingEquipments ? (
+                    <>
+                      <span className="hidden md:block">Salvando...</span>
+                      <Loader2 className="h-4 animate-spin md:h-8" />
+                    </>
+                  ) : (
+                    <>
+                      <span className="hidden md:block">Avançar 1.4</span>
+                      <ArrowRight className="h-4 md:h-8" />
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </AccordionTrigger>
       <AccordionContent>
         <div
@@ -555,7 +577,13 @@ export function EquipmentAccordion({
             selectedSector && "grid-cols-3",
           )}
         >
-          {selectedEquipment !== null ? (
+          {isGettingData ? (
+            [...Array(12)].map((item, index) => (
+              <div key={index} className="flex flex-col gap-2">
+                <Skeleton />
+              </div>
+            ))
+          ) : selectedEquipment !== null ? (
             <>
               <div className="col-span-3 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -1052,38 +1080,46 @@ export function EquipmentAccordion({
                   ))}
             </>
           )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!selectedSector) {
-                setSelectedLayoutStep(2);
-              } else {
-                handleAddEquipment();
+          {isGettingData ? (
+            <Skeleton />
+          ) : (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!selectedSector) {
+                  setSelectedLayoutStep(2);
+                } else {
+                  handleAddEquipment();
+                }
+              }}
+              className={cn(
+                "bg-primary flex h-10 w-full items-center justify-center gap-1 self-end rounded-full px-1 font-bold text-white md:px-4",
+                selectedEquipment && "hidden",
+              )}
+            >
+              <p className="text-xs md:text-sm">+</p>
+              <p className="hidden md:block">
+                Cadastrar {""}
+                {selectedSector ? " Equipamento" : " Setor"}
+              </p>
+            </button>
+          )}
+        </div>
+        {isGettingData ? (
+          <Skeleton className="ml-auto w-80" />
+        ) : (
+          <div className={cn(selectedEquipment && "hidden")}>
+            <CustomPagination
+              currentPage={
+                selectedSector ? currentEquipmentPage : currentSectorPage
               }
-            }}
-            className={cn(
-              "bg-primary flex h-10 w-full items-center justify-center gap-1 self-end rounded-full px-1 font-bold text-white md:px-4",
-              selectedEquipment && "hidden",
-            )}
-          >
-            <p className="text-xs md:text-sm">+</p>
-            <p className="hidden md:block">
-              Cadastrar {""}
-              {selectedSector ? " Equipamento" : " Setor"}
-            </p>
-          </button>
-        </div>
-        <div className={cn(selectedEquipment && "hidden")}>
-          <CustomPagination
-            currentPage={
-              selectedSector ? currentEquipmentPage : currentSectorPage
-            }
-            setCurrentPage={
-              selectedSector ? setCurrentEquipmentPage : setCurrentSectorPage
-            }
-            pages={selectedSector ? equipmentPages : sectorsPages}
-          />
-        </div>
+              setCurrentPage={
+                selectedSector ? setCurrentEquipmentPage : setCurrentSectorPage
+              }
+              pages={selectedSector ? equipmentPages : sectorsPages}
+            />
+          </div>
+        )}
       </AccordionContent>
     </AccordionItem>
   );

@@ -6,6 +6,7 @@ import {
   SubSetProps,
 } from "@/@types/LayoutTypes";
 import { CustomPagination } from "@/components/global/CustomPagination";
+import { Skeleton } from "@/components/global/Skeleton";
 import {
   AccordionContent,
   AccordionItem,
@@ -21,7 +22,7 @@ import { ScrollArea } from "@/components/global/ui/scroll-area";
 import { useApiContext } from "@/context/ApiContext";
 import { useLayoutContext } from "@/context/LayoutContext";
 import { cn } from "@/lib/utils";
-import { ArrowRight, ChevronLeft, Search, Upload } from "lucide-react";
+import { ArrowRight, ChevronLeft, Loader2, Search, Upload } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
@@ -43,6 +44,7 @@ export function SubSetAccordion({
     GetSubSets,
     query,
     setQuery,
+    isGettingData,
   } = useLayoutContext();
   const { PostAPI } = useApiContext();
   const [isImportHovered, setIsImportHovered] = useState(false);
@@ -69,6 +71,7 @@ export function SubSetAccordion({
       cip: null,
     }),
   );
+  const [isCreatingSubSets, setIsCreatingSubSets] = useState(false);
 
   const handleSelectSet = (set: SetProps) => {
     setSelectedSet(set);
@@ -226,6 +229,7 @@ export function SubSetAccordion({
   };
 
   async function HandleCreateSubSets(newSubSets?: SubSetProps[]) {
+    setIsCreatingSubSets(true);
     // If no new equipments are provided, get them by flattening the equipments from all sectors in all areas.
     const subSetsToSend =
       newSubSets ||
@@ -277,9 +281,11 @@ export function SubSetAccordion({
     if (newSubSetResponse.status === 200) {
       toast.success("Subconjuntos cadastrados com sucesso");
       await GetSubSets(); // re-fetch areas from the API
-      return setSelectedLayoutStep(6);
+      setSelectedLayoutStep(6);
+      return setIsCreatingSubSets(false);
     }
-    return toast.error("Erro ao cadastrar Subconjuntos");
+    toast.error("Erro ao cadastrar Subconjuntos");
+    return setIsCreatingSubSets(false);
   }
 
   useEffect(() => {
@@ -335,95 +341,112 @@ export function SubSetAccordion({
   return (
     <AccordionItem value="5" onClick={() => setSelectedLayoutStep(5)}>
       <AccordionTrigger arrow>
-        <div className="flex w-full items-center justify-between">
-          <div className="text-primary flex items-center gap-2 text-base font-bold md:gap-4 md:text-2xl">
-            <span>1.5</span>
-            <div className="flex flex-col">
-              <span className="leading-6">Cadastramento de Subconjunto?</span>
-              <span
-                className={cn(
-                  "w-max text-xs font-normal text-neutral-500 md:text-sm",
-                  selectedLayoutStep !== 5 && "hidden",
-                )}
-              >
-                O que é um Subconjunto? Explicitar
-              </span>
-            </div>
-          </div>
-          {selectedLayoutStep === 5 && selectedSet === null && (
-            <div className="flex items-center gap-4">
-              <Popover open={isImportHovered} onOpenChange={setIsImportHovered}>
-                <PopoverTrigger
-                  asChild
-                  onMouseEnter={() => setIsImportHovered(true)}
-                  onMouseLeave={() => setIsImportHovered(false)}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsImportHovered(false);
-                  }}
-                  onBlur={() => setIsImportHovered(false)}
+        {isGettingData ? (
+          <Skeleton className="h-10" />
+        ) : (
+          <div className="flex w-full items-center justify-between">
+            <div className="text-primary flex items-center gap-2 text-base font-bold md:gap-4 md:text-2xl">
+              <span>1.5</span>
+              <div className="flex flex-col">
+                <span className="leading-6">Cadastramento de Subconjunto?</span>
+                <span
+                  className={cn(
+                    "w-max text-xs font-normal text-neutral-500 md:text-sm",
+                    selectedLayoutStep !== 5 && "hidden",
+                  )}
                 >
-                  <div className="bg-primary flex h-6 items-center gap-2 rounded-full p-1 text-sm font-semibold text-white md:h-10 md:p-2">
-                    <Upload className="h-4 md:h-8" />
-                  </div>
-                </PopoverTrigger>
-                <PopoverContent className="w-max bg-white p-1 text-sm">
-                  <PopoverArrow className="fill-neutral-300" />
-                  <span>Importar Planilhas</span>
-                </PopoverContent>
-              </Popover>
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const currentSubSets =
-                    layoutData.areas?.flatMap(
-                      (area) =>
-                        area.sectors?.flatMap(
-                          (sector) =>
-                            sector.equipments?.flatMap(
-                              (eq) =>
-                                eq.sets?.flatMap((set) => set.subSets || []) ||
-                                [],
-                            ) || [],
-                        ) || [],
-                    ) || [];
-                  let newSubSets: SubSetProps[] = [];
-                  if (originalSubSets) {
-                    newSubSets = currentSubSets.filter(
-                      (subset) =>
-                        !originalSubSets.find(
-                          (original) => original.position === subset.position,
-                        ),
-                    );
-                  } else {
-                    newSubSets = currentSubSets;
-                  }
-                  if (newSubSets.length > 0) {
-                    HandleCreateSubSets(newSubSets);
-                  } else {
-                    setSelectedLayoutStep(6);
-                  }
-                }}
-                className={cn(
-                  "bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4",
-                  // layoutData &&
-                  //   layoutData.areas &&
-                  //   layoutData.areas.find((area) =>
-                  //     area.sectors?.find((sector) =>
-                  //       sector.equipments?.find((eq) =>
-                  //         eq.sets?.find((set) => !set.subSets),
-                  //       ),
-                  //     ),
-                  //   ) &&
-                  //   "pointer-events-none cursor-not-allowed opacity-50",
-                )}
-              >
-                <span className="hidden md:block">Avançar 1.6</span>
-                <ArrowRight className="h-4 md:h-8" />
+                  O que é um Subconjunto? Explicitar
+                </span>
               </div>
             </div>
-          )}
-        </div>
+            {selectedLayoutStep === 5 && selectedSet === null && (
+              <div className="flex items-center gap-4">
+                <Popover
+                  open={isImportHovered}
+                  onOpenChange={setIsImportHovered}
+                >
+                  <PopoverTrigger
+                    asChild
+                    onMouseEnter={() => setIsImportHovered(true)}
+                    onMouseLeave={() => setIsImportHovered(false)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsImportHovered(false);
+                    }}
+                    onBlur={() => setIsImportHovered(false)}
+                  >
+                    <div className="bg-primary flex h-6 items-center gap-2 rounded-full p-1 text-sm font-semibold text-white md:h-10 md:p-2">
+                      <Upload className="h-4 md:h-8" />
+                    </div>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-max bg-white p-1 text-sm">
+                    <PopoverArrow className="fill-neutral-300" />
+                    <span>Importar Planilhas</span>
+                  </PopoverContent>
+                </Popover>
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const currentSubSets =
+                      layoutData.areas?.flatMap(
+                        (area) =>
+                          area.sectors?.flatMap(
+                            (sector) =>
+                              sector.equipments?.flatMap(
+                                (eq) =>
+                                  eq.sets?.flatMap(
+                                    (set) => set.subSets || [],
+                                  ) || [],
+                              ) || [],
+                          ) || [],
+                      ) || [];
+                    let newSubSets: SubSetProps[] = [];
+                    if (originalSubSets) {
+                      newSubSets = currentSubSets.filter(
+                        (subset) =>
+                          !originalSubSets.find(
+                            (original) => original.position === subset.position,
+                          ),
+                      );
+                    } else {
+                      newSubSets = currentSubSets;
+                    }
+                    if (newSubSets.length > 0) {
+                      HandleCreateSubSets(newSubSets);
+                    } else {
+                      setSelectedLayoutStep(6);
+                    }
+                  }}
+                  className={cn(
+                    "bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4",
+                    // layoutData &&
+                    //   layoutData.areas &&
+                    //   layoutData.areas.find((area) =>
+                    //     area.sectors?.find((sector) =>
+                    //       sector.equipments?.find((eq) =>
+                    //         eq.sets?.find((set) => !set.subSets),
+                    //       ),
+                    //     ),
+                    //   ) &&
+                    //   "pointer-events-none cursor-not-allowed opacity-50",
+                  )}
+                >
+                  {isCreatingSubSets ? (
+                    <>
+                      <span className="hidden md:block">Salvando...</span>
+                      <Loader2 className="h-4 animate-spin md:h-8" />
+                    </>
+                  ) : (
+                    <>
+                      <span className="hidden md:block">Avançar 1.5</span>
+                      <ArrowRight className="h-4 md:h-8" />
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </AccordionTrigger>
       <AccordionContent>
         <div
@@ -433,7 +456,13 @@ export function SubSetAccordion({
             selectedSet && "px-0",
           )}
         >
-          {selectedSet ? (
+          {isGettingData ? (
+            [...Array(12)].map((item, index) => (
+              <div key={index} className="flex flex-col gap-2">
+                <Skeleton />
+              </div>
+            ))
+          ) : selectedSet ? (
             <>
               <div className="col-span-3 flex flex-col justify-between gap-2">
                 <div className="flex items-center gap-2 px-4">
@@ -974,37 +1003,45 @@ export function SubSetAccordion({
                   ))}
             </>
           )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!selectedEquipment) {
-                setSelectedLayoutStep(3);
-              } else if (selectedEquipment && !selectedSet) {
-                setSelectedLayoutStep(4);
+          {isGettingData ? (
+            <Skeleton />
+          ) : (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!selectedEquipment) {
+                  setSelectedLayoutStep(3);
+                } else if (selectedEquipment && !selectedSet) {
+                  setSelectedLayoutStep(4);
+                }
+              }}
+              className={cn(
+                "bg-primary flex h-10 w-full items-center justify-center gap-1 self-end rounded-full px-1 font-bold text-white md:px-4",
+                selectedSet && "hidden",
+              )}
+            >
+              <p className="text-xs md:text-sm">+</p>
+              <p className="hidden md:block">
+                Cadastrar {selectedEquipment ? " Conjunto" : " Equipamento"}
+              </p>
+            </button>
+          )}
+        </div>
+        {isGettingData ? (
+          <Skeleton className="ml-auto w-80" />
+        ) : (
+          <div className={cn(selectedSet && "hidden")}>
+            <CustomPagination
+              currentPage={
+                selectedEquipment ? currentSetPage : currentEquipmentPage
               }
-            }}
-            className={cn(
-              "bg-primary flex h-10 w-full items-center justify-center gap-1 self-end rounded-full px-1 font-bold text-white md:px-4",
-              selectedSet && "hidden",
-            )}
-          >
-            <p className="text-xs md:text-sm">+</p>
-            <p className="hidden md:block">
-              Cadastrar {selectedEquipment ? " Conjunto" : " Equipamento"}
-            </p>
-          </button>
-        </div>
-        <div className={cn(selectedSet && "hidden")}>
-          <CustomPagination
-            currentPage={
-              selectedEquipment ? currentSetPage : currentEquipmentPage
-            }
-            setCurrentPage={
-              selectedEquipment ? setCurrentSetPage : setCurrentEquipmentPage
-            }
-            pages={selectedEquipment ? setsPages : equipmentPages}
-          />
-        </div>
+              setCurrentPage={
+                selectedEquipment ? setCurrentSetPage : setCurrentEquipmentPage
+              }
+              pages={selectedEquipment ? setsPages : equipmentPages}
+            />
+          </div>
+        )}
       </AccordionContent>
     </AccordionItem>
   );

@@ -8,6 +8,7 @@ import {
   SubSetProps,
 } from "@/@types/LayoutTypes";
 import { CustomPagination } from "@/components/global/CustomPagination";
+import { Skeleton } from "@/components/global/Skeleton";
 import {
   AccordionContent,
   AccordionItem,
@@ -23,7 +24,7 @@ import { ScrollArea } from "@/components/global/ui/scroll-area";
 import { useApiContext } from "@/context/ApiContext";
 import { useLayoutContext } from "@/context/LayoutContext";
 import { cn } from "@/lib/utils";
-import { ArrowRight, ChevronLeft, Search, Upload } from "lucide-react";
+import { ArrowRight, ChevronLeft, Loader2, Search, Upload } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
@@ -38,8 +39,15 @@ export function CipAccordion({
   selectedLayoutStep,
   setSelectedLayoutStep,
 }: CipAccordionProps) {
-  const { layoutData, setLayoutData, originalCips, GetCips, query, setQuery } =
-    useLayoutContext();
+  const {
+    layoutData,
+    setLayoutData,
+    originalCips,
+    GetCips,
+    query,
+    setQuery,
+    isGettingData,
+  } = useLayoutContext();
   const { PostAPI } = useApiContext();
   const [isImportHovered, setIsImportHovered] = useState(false);
   const [selectedEquipment, setSelectedEquipment] =
@@ -71,6 +79,7 @@ export function CipAccordion({
       cip: null,
     })),
   );
+  const [isCreatingCips, setIsCreatingCips] = useState(false);
 
   function getMaxCipCode(layoutData: LayoutTypeProps): number {
     // Start with 999 so that if no CIP exists, next will be 1000.
@@ -301,6 +310,7 @@ export function CipAccordion({
   };
 
   async function HandleCreateCips(newCip?: CipProps[]) {
+    setIsCreatingCips(true);
     // If no new equipments are provided, get them by flattening the equipments from all sectors in all areas.
     const cipsToSend =
       newCip ||
@@ -359,9 +369,11 @@ export function CipAccordion({
     if (newCipResponse.status === 200) {
       toast.success("CIPs cadastrados com sucesso");
       await GetCips(); // re-fetch areas from the API
-      return setSelectedLayoutStep(7);
+      setSelectedLayoutStep(7);
+      return setIsCreatingCips(false);
     }
-    return toast.error("Erro ao cadastrar CIPs");
+    toast.error("Erro ao cadastrar CIPs");
+    return setIsCreatingCips(false);
   }
 
   useEffect(() => {
@@ -467,89 +479,108 @@ export function CipAccordion({
   return (
     <AccordionItem value="6" onClick={() => setSelectedLayoutStep(6)}>
       <AccordionTrigger arrow>
-        <div className="flex w-full items-center justify-between">
-          <div className="text-primary flex items-center gap-2 text-base font-bold md:gap-4 md:text-2xl">
-            <span>1.6</span>
-            <div className="flex flex-col">
-              <span className="leading-6">Cadastramento de CIP?</span>
-              <span
-                className={cn(
-                  "w-max text-xs font-normal text-neutral-500 md:text-sm",
-                  selectedLayoutStep !== 6 && "hidden",
-                )}
-              >
-                O que é um Subconjunto? Explicitar
-              </span>
-            </div>
-          </div>
-          {selectedLayoutStep === 6 && selectedSubSet === null && (
-            <div className="flex items-center gap-4">
-              <Popover open={isImportHovered} onOpenChange={setIsImportHovered}>
-                <PopoverTrigger
-                  asChild
-                  onMouseEnter={() => setIsImportHovered(true)}
-                  onMouseLeave={() => setIsImportHovered(false)}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsImportHovered(false);
-                  }}
-                  onBlur={() => setIsImportHovered(false)}
+        {isGettingData ? (
+          <Skeleton className="h-10" />
+        ) : (
+          <div className="flex w-full items-center justify-between">
+            <div className="text-primary flex items-center gap-2 text-base font-bold md:gap-4 md:text-2xl">
+              <span>1.6</span>
+              <div className="flex flex-col">
+                <span className="leading-6">Cadastramento de CIP?</span>
+                <span
+                  className={cn(
+                    "w-max text-xs font-normal text-neutral-500 md:text-sm",
+                    selectedLayoutStep !== 6 && "hidden",
+                  )}
                 >
-                  <div className="bg-primary flex h-6 items-center gap-2 rounded-full p-1 text-sm font-semibold text-white md:h-10 md:p-2">
-                    <Upload className="h-4 md:h-8" />
-                  </div>
-                </PopoverTrigger>
-                <PopoverContent className="w-max bg-white p-1 text-sm">
-                  <PopoverArrow className="fill-neutral-300" />
-                  <span>Importar Planilhas</span>
-                </PopoverContent>
-              </Popover>
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const currentCips =
-                    layoutData.areas?.flatMap(
-                      (area) =>
-                        area.sectors?.flatMap(
-                          (sector) =>
-                            sector.equipments?.flatMap(
-                              (eq) =>
-                                eq.sets?.flatMap(
-                                  (set) =>
-                                    set.subSets?.flatMap(
-                                      (subSet) =>
-                                        subSet.cip?.flatMap((cip) => cip) || [],
-                                    ) || [],
-                                ) || [],
-                            ) || [],
-                        ) || [],
-                    ) || [];
-
-                  let newCips: CipProps[] = [];
-                  if (originalCips) {
-                    newCips = currentCips.filter(
-                      (subset) =>
-                        !originalCips.find(
-                          (original) => original.position === subset.position,
-                        ),
-                    );
-                  } else {
-                    newCips = currentCips;
-                  }
-                  if (newCips.length > 0) {
-                    HandleCreateCips(newCips);
-                  } else {
-                    setSelectedLayoutStep(7);
-                  }
-                }}
-                className="bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4"
-              >
-                <span className="hidden md:block">Próximo Cadastramento</span>
-                <ArrowRight className="h-4 md:h-8" />
+                  O que é um Subconjunto? Explicitar
+                </span>
               </div>
             </div>
-          )}
-        </div>
+            {selectedLayoutStep === 6 && selectedSubSet === null && (
+              <div className="flex items-center gap-4">
+                <Popover
+                  open={isImportHovered}
+                  onOpenChange={setIsImportHovered}
+                >
+                  <PopoverTrigger
+                    asChild
+                    onMouseEnter={() => setIsImportHovered(true)}
+                    onMouseLeave={() => setIsImportHovered(false)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsImportHovered(false);
+                    }}
+                    onBlur={() => setIsImportHovered(false)}
+                  >
+                    <div className="bg-primary flex h-6 items-center gap-2 rounded-full p-1 text-sm font-semibold text-white md:h-10 md:p-2">
+                      <Upload className="h-4 md:h-8" />
+                    </div>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-max bg-white p-1 text-sm">
+                    <PopoverArrow className="fill-neutral-300" />
+                    <span>Importar Planilhas</span>
+                  </PopoverContent>
+                </Popover>
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const currentCips =
+                      layoutData.areas?.flatMap(
+                        (area) =>
+                          area.sectors?.flatMap(
+                            (sector) =>
+                              sector.equipments?.flatMap(
+                                (eq) =>
+                                  eq.sets?.flatMap(
+                                    (set) =>
+                                      set.subSets?.flatMap(
+                                        (subSet) =>
+                                          subSet.cip?.flatMap((cip) => cip) ||
+                                          [],
+                                      ) || [],
+                                  ) || [],
+                              ) || [],
+                          ) || [],
+                      ) || [];
+
+                    let newCips: CipProps[] = [];
+                    if (originalCips) {
+                      newCips = currentCips.filter(
+                        (subset) =>
+                          !originalCips.find(
+                            (original) => original.position === subset.position,
+                          ),
+                      );
+                    } else {
+                      newCips = currentCips;
+                    }
+                    if (newCips.length > 0) {
+                      HandleCreateCips(newCips);
+                    } else {
+                      setSelectedLayoutStep(7);
+                    }
+                  }}
+                  className="bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4"
+                >
+                  {isCreatingCips ? (
+                    <>
+                      <span className="hidden md:block">Salvando...</span>
+                      <Loader2 className="h-4 animate-spin md:h-8" />
+                    </>
+                  ) : (
+                    <>
+                      <span className="hidden md:block">
+                        Próximo Cadastramento
+                      </span>
+                      <ArrowRight className="h-4 md:h-8" />
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </AccordionTrigger>
       <AccordionContent>
         <div
@@ -559,7 +590,13 @@ export function CipAccordion({
             selectedSubSet && "px-0",
           )}
         >
-          {selectedSubSet ? (
+          {isGettingData ? (
+            [...Array(12)].map((item, index) => (
+              <div key={index} className="flex flex-col gap-2">
+                <Skeleton />
+              </div>
+            ))
+          ) : selectedSubSet ? (
             <div className="col-span-3 flex flex-col justify-between gap-2">
               <div className="flex items-center gap-2 px-2 md:px-4">
                 <button
@@ -1391,58 +1428,70 @@ export function CipAccordion({
                   ))}
             </>
           )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!selectedEquipment) {
-                setSelectedLayoutStep(3);
-              } else if (selectedEquipment && !selectedSet) {
-                setSelectedLayoutStep(4);
-              } else if (selectedEquipment && selectedSet && !selectedSubSet) {
-                setSelectedLayoutStep(5);
+          {isGettingData ? (
+            <Skeleton />
+          ) : (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!selectedEquipment) {
+                  setSelectedLayoutStep(3);
+                } else if (selectedEquipment && !selectedSet) {
+                  setSelectedLayoutStep(4);
+                } else if (
+                  selectedEquipment &&
+                  selectedSet &&
+                  !selectedSubSet
+                ) {
+                  setSelectedLayoutStep(5);
+                }
+              }}
+              className={cn(
+                "bg-primary flex h-10 w-full items-center justify-center gap-1 self-end rounded-full px-1 font-bold text-white md:px-4",
+                selectedSubSet && "hidden",
+              )}
+            >
+              <p className="text-xs md:text-sm">+</p>
+              <p className="hidden md:block">
+                Cadastrar{" "}
+                {selectedSet
+                  ? " Subconjunto"
+                  : selectedEquipment
+                    ? " Conjunto"
+                    : " Equipamento"}
+              </p>
+            </button>
+          )}
+        </div>
+        {isGettingData ? (
+          <Skeleton className="ml-auto w-80" />
+        ) : (
+          <div className={cn(selectedSubSet && "hidden")}>
+            <CustomPagination
+              currentPage={
+                selectedSet
+                  ? currentSubSetPage
+                  : selectedEquipment
+                    ? currentSetPage
+                    : currentEquipmentPage
               }
-            }}
-            className={cn(
-              "bg-primary flex h-10 w-full items-center justify-center gap-1 self-end rounded-full px-1 font-bold text-white md:px-4",
-              selectedSubSet && "hidden",
-            )}
-          >
-            <p className="text-xs md:text-sm">+</p>
-            <p className="hidden md:block">
-              Cadastrar{" "}
-              {selectedSet
-                ? " Subconjunto"
-                : selectedEquipment
-                  ? " Conjunto"
-                  : " Equipamento"}
-            </p>
-          </button>
-        </div>
-        <div className={cn(selectedSubSet && "hidden")}>
-          <CustomPagination
-            currentPage={
-              selectedSet
-                ? currentSubSetPage
-                : selectedEquipment
-                  ? currentSetPage
-                  : currentEquipmentPage
-            }
-            setCurrentPage={
-              selectedSet
-                ? setCurrentSubSetPage
-                : selectedEquipment
-                  ? setCurrentSetPage
-                  : setCurrentEquipmentPage
-            }
-            pages={
-              selectedSet
-                ? subSetPages
-                : selectedEquipment
-                  ? setPages
-                  : equipmentPages
-            }
-          />
-        </div>
+              setCurrentPage={
+                selectedSet
+                  ? setCurrentSubSetPage
+                  : selectedEquipment
+                    ? setCurrentSetPage
+                    : setCurrentEquipmentPage
+              }
+              pages={
+                selectedSet
+                  ? subSetPages
+                  : selectedEquipment
+                    ? setPages
+                    : equipmentPages
+              }
+            />
+          </div>
+        )}
       </AccordionContent>
     </AccordionItem>
   );
