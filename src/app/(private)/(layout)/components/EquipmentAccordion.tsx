@@ -44,8 +44,14 @@ export function EquipmentAccordion({
   selectedLayoutStep,
   setSelectedLayoutStep,
 }: EquipmentAccordionProps) {
-  const { layoutData, setLayoutData, GetEquipments, originalEquipments } =
-    useLayoutContext();
+  const {
+    layoutData,
+    setLayoutData,
+    GetEquipments,
+    originalEquipments,
+    query,
+    setQuery,
+  } = useLayoutContext();
   const { PostAPI } = useApiContext();
   const [isImportHovered, setIsImportHovered] = useState(false);
   const [selectedSector, setSelectedSector] = useState<SectorProps | null>(
@@ -409,13 +415,27 @@ export function EquipmentAccordion({
   }, [inputEquipmentValues]);
 
   useEffect(() => {
-    if (
-      layoutData.areas &&
-      layoutData.areas.flatMap((area) => area.sectors || []).length > 1
-    ) {
-      setSectorsPages(Math.ceil(layoutData.areas.length / 12));
+    if (!layoutData.areas) {
+      setSectorsPages(1);
+      return;
     }
-  }, [layoutData.areas]);
+
+    // Flatten all sectors from all areas
+    const allSectors = layoutData.areas.flatMap((area) => area.sectors || []);
+
+    // Filter the sectors using the query.
+    // (Assuming each sector has a "name" property you want to match against.)
+    const filteredSectors = query
+      ? allSectors.filter((sector) =>
+          sector.name.toLowerCase().includes(query.toLowerCase()),
+        )
+      : allSectors;
+
+    // Calculate the number of pages using the filtered list (e.g. 12 sectors per page)
+    setSectorsPages(
+      filteredSectors.length > 0 ? Math.ceil(filteredSectors.length / 12) : 1,
+    );
+  }, [layoutData.areas, query]);
 
   const equipmentHasPhotos = (() => {
     if (!selectedSector || selectedEquipment === null || !layoutData.areas)
@@ -867,6 +887,7 @@ export function EquipmentAccordion({
                   </PopoverContent>
                 </Popover>
               </div>
+
               {[...Array(equipmentsArrayLength)]
                 .slice((currentEquipmentPage - 1) * 6, currentEquipmentPage * 6)
                 .map((item, index) => {
@@ -966,6 +987,8 @@ export function EquipmentAccordion({
                   <input
                     className="transparent placeholder:neutral-300 absolute left-0 h-full w-[calc(100%-2rem)] rounded-md px-4 focus:outline-none"
                     placeholder="Buscar Setor"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
                   />
                   <div className="bg-primary absolute right-0 flex h-full w-8 items-center justify-center">
                     <Search size={12} />
@@ -975,6 +998,9 @@ export function EquipmentAccordion({
               {layoutData.areas &&
                 layoutData.areas
                   .flatMap((area) => area.sectors || [])
+                  .filter((sector) =>
+                    sector.name.toLowerCase().includes(query.toLowerCase()),
+                  )
                   .slice((currentSectorPage - 1) * 12, currentSectorPage * 12)
                   .map((item, index) => (
                     <div key={index} className="flex flex-col gap-2">
@@ -982,6 +1008,7 @@ export function EquipmentAccordion({
                         onClick={(e) => {
                           e.stopPropagation();
                           handleSelectSector(item);
+                          setQuery("");
                         }}
                         className={cn(
                           "relative flex h-10 cursor-pointer items-center justify-start rounded-2xl md:h-12",

@@ -31,7 +31,7 @@ export function SetAccordion({
   selectedLayoutStep,
   setSelectedLayoutStep,
 }: SetAccordionProps) {
-  const { layoutData, setLayoutData, originalSets, GetSets } =
+  const { layoutData, setLayoutData, originalSets, GetSets, query, setQuery } =
     useLayoutContext();
   const { PostAPI } = useApiContext();
   const [isImportHovered, setIsImportHovered] = useState(false);
@@ -252,27 +252,53 @@ export function SetAccordion({
   }
 
   useEffect(() => {
-    if (
-      layoutData.areas &&
-      layoutData.areas.flatMap((area) => area.sectors || []).length > 1
-    ) {
-      setSectorsPages(Math.ceil(layoutData.areas.length / 12));
+    if (!layoutData.areas) {
+      setSectorsPages(1);
+      return;
     }
-  }, [layoutData.areas]);
+
+    // Flatten all sectors from all areas
+    const allSectors = layoutData.areas.flatMap((area) => area.sectors || []);
+
+    // Filter the sectors using the query.
+    // (Assuming each sector has a "name" property you want to match against.)
+    const filteredSectors = query
+      ? allSectors.filter((sector) =>
+          sector.name.toLowerCase().includes(query.toLowerCase()),
+        )
+      : allSectors;
+
+    // Calculate the number of pages using the filtered list (e.g. 12 sectors per page)
+    setSectorsPages(
+      filteredSectors.length > 0 ? Math.ceil(filteredSectors.length / 12) : 1,
+    );
+  }, [layoutData.areas, query]);
 
   useEffect(() => {
-    if (!layoutData.areas || !selectedSector?.position) return;
+    if (!layoutData.areas) return;
 
-    const selectedSectorData = layoutData.areas
-      .flatMap((area) => area.sectors || [])
-      .find((sector) => sector.position === selectedSector.position);
+    // Flatten equipments from every sector in every area
+    const allEquipments = layoutData.areas.flatMap((area) =>
+      area.sectors
+        ? area.sectors.flatMap((sector) => sector.equipments || [])
+        : [],
+    );
 
-    if (selectedSectorData?.equipments?.length) {
-      setEquipmentPages(
-        Math.ceil((selectedSectorData.equipments.length || 0) / 6),
-      );
-    }
-  }, [layoutData.areas, selectedSector?.position]);
+    // Filter equipments according to the query.
+    // Adjust the field (e.g. 'name') as needed for your filtering criteria.
+    const filteredEquipments = query
+      ? allEquipments.filter((equipment) =>
+          equipment.name.toLowerCase().includes(query.toLowerCase()),
+        )
+      : allEquipments;
+
+    // Calculate the total number of pages (12 equipments per page)
+    setEquipmentPages(
+      filteredEquipments.length > 0
+        ? Math.ceil(filteredEquipments.length / 6)
+        : 1,
+    );
+  }, [layoutData.areas, query]);
 
   return (
     <AccordionItem value="4" onClick={() => setSelectedLayoutStep(4)}>
@@ -554,69 +580,85 @@ export function SetAccordion({
             </>
           ) : selectedSector ? (
             <>
-              <div className="col-span-3 flex items-center gap-2">
-                <button
-                  onClick={() => setSelectedSector(null)}
-                  className="text-primary flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-[0px_0px_10px_0px_rgba(0,0,0,0.35)] md:h-12 md:w-12"
-                >
-                  <ChevronLeft />
-                </button>
-                <Popover
-                  open={isSectorNameHovered}
-                  onOpenChange={setIsSectorNameHovered}
-                >
-                  <PopoverTrigger
-                    asChild
-                    onMouseEnter={() => setIsSectorNameHovered(true)}
-                    onMouseLeave={() => setIsSectorNameHovered(false)}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsSectorNameHovered(false);
-                    }}
-                    onBlur={() => setIsSectorNameHovered(false)}
+              <div className="col-span-3 flex flex-col gap-4">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSelectedSector(null)}
+                    className="text-primary flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-[0px_0px_10px_0px_rgba(0,0,0,0.35)] md:h-12 md:w-12"
                   >
-                    <label
-                      className={cn(
-                        "relative flex h-10 w-32 items-center justify-start overflow-hidden rounded-2xl pr-1 md:h-12 md:w-40",
-                        "bg-primary",
-                      )}
+                    <ChevronLeft />
+                  </button>
+                  <Popover
+                    open={isSectorNameHovered}
+                    onOpenChange={setIsSectorNameHovered}
+                  >
+                    <PopoverTrigger
+                      asChild
+                      onMouseEnter={() => setIsSectorNameHovered(true)}
+                      onMouseLeave={() => setIsSectorNameHovered(false)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsSectorNameHovered(false);
+                      }}
+                      onBlur={() => setIsSectorNameHovered(false)}
                     >
-                      <span
+                      <label
                         className={cn(
-                          "bg-primary/20 text-primary flex h-10 w-10 min-w-10 items-center justify-center rounded-2xl p-1 font-bold md:h-12 md:w-12 md:min-w-12",
-                          "bg-white/20 text-white",
+                          "relative flex h-10 w-32 items-center justify-start overflow-hidden rounded-2xl pr-1 md:h-12 md:w-40",
+                          "bg-primary",
                         )}
                       >
-                        {selectedSector.position}
-                      </span>
-                      <input
-                        className={cn(
-                          "peer transparent h-full px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
-                          "text-white",
-                        )}
-                        placeholder="Nome da Área"
-                        value={selectedSector.name}
-                        disabled
-                      />
+                        <span
+                          className={cn(
+                            "bg-primary/20 text-primary flex h-10 w-10 min-w-10 items-center justify-center rounded-2xl p-1 font-bold md:h-12 md:w-12 md:min-w-12",
+                            "bg-white/20 text-white",
+                          )}
+                        >
+                          {selectedSector.position}
+                        </span>
+                        <input
+                          className={cn(
+                            "peer transparent h-full px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
+                            "text-white",
+                          )}
+                          placeholder="Nome da Área"
+                          value={selectedSector.name}
+                          disabled
+                        />
 
-                      <div
-                        className={cn(
-                          "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
-                          "shadow-[0px_2px_7px_rgba(0,0,0,0.35)]",
-                        )}
-                      />
-                    </label>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-max max-w-40 bg-white p-1 text-sm break-words">
-                    <PopoverArrow className="fill-neutral-300" />
-                    <span>{selectedSector.name}</span>
-                  </PopoverContent>
-                </Popover>
+                        <div
+                          className={cn(
+                            "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
+                            "shadow-[0px_2px_7px_rgba(0,0,0,0.35)]",
+                          )}
+                        />
+                      </label>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-max max-w-40 bg-white p-1 text-sm break-words">
+                      <PopoverArrow className="fill-neutral-300" />
+                      <span>{selectedSector.name}</span>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <label className="border-primary relative flex h-8 w-60 items-center rounded-md border">
+                  <input
+                    className="transparent placeholder:neutral-300 absolute left-0 h-full w-[calc(100%-2rem)] rounded-md px-4 focus:outline-none"
+                    placeholder="Buscar Equipamento"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
+                  <div className="bg-primary absolute right-0 flex h-full w-8 items-center justify-center">
+                    <Search size={12} />
+                  </div>
+                </label>
               </div>
               {layoutData.areas
                 ?.flatMap((area) => area.sectors || [])
                 .find((sector) => sector.position === selectedSector?.position)
-                ?.equipments?.slice(
+                ?.equipments?.filter((equipment) =>
+                  equipment.name.toLowerCase().includes(query.toLowerCase()),
+                )
+                ?.slice(
                   (currentEquipmentPage - 1) * 6,
                   currentEquipmentPage * 6,
                 )
@@ -626,7 +668,10 @@ export function SetAccordion({
                       {item.tag}
                     </span>
                     <label
-                      onClick={() => handleSelectEquipment(item)}
+                      onClick={() => {
+                        handleSelectEquipment(item);
+                        setQuery("");
+                      }}
                       className={cn(
                         "relative flex h-10 items-center justify-end rounded-2xl px-2 md:h-12 md:px-4",
                         item.sets ? "bg-primary" : "",
@@ -684,14 +729,12 @@ export function SetAccordion({
           ) : (
             <>
               <div className="col-span-4 flex flex-col gap-2">
-                <span>
-                  Texto para Explicar que deverá selecionar um Setor antes do
-                  Equipamento:
-                </span>
                 <label className="border-primary relative flex h-8 w-60 items-center rounded-md border">
                   <input
                     className="transparent placeholder:neutral-300 absolute left-0 h-full w-[calc(100%-2rem)] rounded-md px-4 focus:outline-none"
                     placeholder="Buscar Setor"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
                   />
                   <div className="bg-primary absolute right-0 flex h-full w-8 items-center justify-center">
                     <Search size={12} />
@@ -701,6 +744,9 @@ export function SetAccordion({
               {layoutData.areas &&
                 layoutData.areas
                   .flatMap((area) => area.sectors || [])
+                  .filter((sector) =>
+                    sector.name.toLowerCase().includes(query.toLowerCase()),
+                  )
                   .slice((currentSectorPage - 1) * 12, currentSectorPage * 12)
                   .map((item, index) => (
                     <div key={index} className="flex flex-col gap-2">
@@ -708,6 +754,7 @@ export function SetAccordion({
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedSector(item);
+                          setQuery("");
                         }}
                         className={cn(
                           "relative flex h-10 cursor-pointer items-center justify-start rounded-2xl md:h-12",

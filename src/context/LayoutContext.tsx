@@ -37,6 +37,8 @@ interface LayoutContextProps {
   >;
   originalCips: CipProps[] | null;
   setOriginalCips: React.Dispatch<React.SetStateAction<CipProps[] | null>>;
+  query: string;
+  setQuery: React.Dispatch<React.SetStateAction<string>>;
   GetAreas: () => void;
   GetSectors: () => void;
   GetEquipments: () => void;
@@ -69,6 +71,7 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
     null,
   );
   const [originalCips, setOriginalCips] = useState<CipProps[] | null>(null);
+  const [query, setQuery] = useState<string>("");
   const [cipCount, setCipCount] = useState(1);
 
   console.log("layoutData: ", layoutData);
@@ -368,6 +371,8 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
         setOriginalSubSets,
         originalCips,
         setOriginalCips,
+        query,
+        setQuery,
         GetAreas,
         GetSectors,
         GetEquipments,

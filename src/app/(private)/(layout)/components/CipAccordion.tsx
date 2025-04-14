@@ -38,7 +38,7 @@ export function CipAccordion({
   selectedLayoutStep,
   setSelectedLayoutStep,
 }: CipAccordionProps) {
-  const { layoutData, setLayoutData, originalCips, GetCips } =
+  const { layoutData, setLayoutData, originalCips, GetCips, query, setQuery } =
     useLayoutContext();
   const { PostAPI } = useApiContext();
   const [isImportHovered, setIsImportHovered] = useState(false);
@@ -365,28 +365,63 @@ export function CipAccordion({
   }
 
   useEffect(() => {
-    if (!layoutData) return;
+    if (!layoutData.areas) return;
 
     if (selectedSet) {
-      // If a set is selected, pagination should depend on the number of subSets
-      return setSubSetPages(
-        Math.ceil((selectedSet.subSets?.length || 0) / 6) || 1,
+      // Filter the subSets for the selected set using the query (e.g., by name).
+      const allSubSets = selectedSet.subSets || [];
+      const filteredSubSets = query
+        ? allSubSets.filter((subSet) =>
+            subSet.name.toLowerCase().includes(query.toLowerCase()),
+          )
+        : allSubSets;
+      setSubSetPages(
+        filteredSubSets.length > 0 ? Math.ceil(filteredSubSets.length / 6) : 1,
       );
     } else if (selectedEquipment) {
-      // If an equipment is selected, pagination should depend on the number of sets
-      return setSetPages(
-        Math.ceil((selectedEquipment.sets?.length || 0) / 6) || 1,
+      // Filter the sets for the selected equipment using the query.
+      const allSets = selectedEquipment.sets || [];
+      const filteredSets = query
+        ? allSets.filter((set) =>
+            set.name.toLowerCase().includes(query.toLowerCase()),
+          )
+        : allSets;
+      setSetPages(
+        filteredSets.length > 0 ? Math.ceil(filteredSets.length / 6) : 1,
+      );
+    } else if (selectedSector) {
+      // Filter the equipments within the selected sector using the query.
+      const allEquipments = selectedSector.equipments || [];
+      const filteredEquipments = query
+        ? allEquipments.filter((equipment) =>
+            equipment.name.toLowerCase().includes(query.toLowerCase()),
+          )
+        : allEquipments;
+      setEquipmentPages(
+        filteredEquipments.length > 0
+          ? Math.ceil(filteredEquipments.length / 12)
+          : 1,
       );
     } else {
-      // If no equipment is selected, pagination should depend on the number of equipments in the sector
-      const totalEquipments =
-        layoutData?.areas
-          ?.flatMap((area) => area.sectors || [])
-          ?.flatMap((sector) => sector.equipments || []).length || 0;
-
-      return setEquipmentPages(Math.ceil(totalEquipments / 12) || 1);
+      // Fallback: flatten all equipments across all areas, filter by query,
+      // and calculate pages with 12 items per page.
+      const allEquipments = layoutData.areas.flatMap((area) =>
+        area.sectors
+          ? area.sectors.flatMap((sector) => sector.equipments || [])
+          : [],
+      );
+      const filteredEquipments = query
+        ? allEquipments.filter((equipment) =>
+            equipment.name.toLowerCase().includes(query.toLowerCase()),
+          )
+        : allEquipments;
+      setEquipmentPages(
+        filteredEquipments.length > 0
+          ? Math.ceil(filteredEquipments.length / 12)
+          : 1,
+      );
     }
-  }, [layoutData, selectedEquipment, selectedSet]);
+  }, [layoutData.areas, selectedSet, selectedEquipment, selectedSector, query]);
 
   useEffect(() => {
     if (!selectedSubSet) return;
@@ -412,8 +447,6 @@ export function CipAccordion({
         });
       });
     });
-
-    console.log("currentSubSet: ", currentSubSet);
 
     // If we found an up-to-date sub-set, use its cip array.
     let newCipInputs: CipProps[] = [];
@@ -819,191 +852,207 @@ export function CipAccordion({
             </div>
           ) : selectedSet ? (
             <>
-              <div className="col-span-3 flex items-center gap-2">
-                <button
-                  onClick={() => setSelectedSet(null)}
-                  className="text-primary flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-[0px_0px_10px_0px_rgba(0,0,0,0.35)] md:h-12 md:w-12"
-                >
-                  <ChevronLeft />
-                </button>
-                <Popover
-                  open={isSectorNameHovered}
-                  onOpenChange={setIsSectorNameHovered}
-                >
-                  <PopoverTrigger
-                    asChild
-                    onMouseEnter={() => setIsSectorNameHovered(true)}
-                    onMouseLeave={() => setIsSectorNameHovered(false)}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsSectorNameHovered(false);
-                    }}
-                    onBlur={() => setIsSectorNameHovered(false)}
+              <div className="col-span-3 flex flex-col gap-4">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSelectedSet(null)}
+                    className="text-primary flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-[0px_0px_10px_0px_rgba(0,0,0,0.35)] md:h-12 md:w-12"
                   >
-                    <label
-                      className={cn(
-                        "relative flex h-10 w-32 items-center justify-start overflow-hidden rounded-2xl pr-1 md:h-12 md:w-40",
-                        "bg-primary",
-                      )}
+                    <ChevronLeft />
+                  </button>
+                  <Popover
+                    open={isSectorNameHovered}
+                    onOpenChange={setIsSectorNameHovered}
+                  >
+                    <PopoverTrigger
+                      asChild
+                      onMouseEnter={() => setIsSectorNameHovered(true)}
+                      onMouseLeave={() => setIsSectorNameHovered(false)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsSectorNameHovered(false);
+                      }}
+                      onBlur={() => setIsSectorNameHovered(false)}
                     >
-                      <span
+                      <label
                         className={cn(
-                          "bg-primary/20 text-primary flex h-10 w-10 min-w-10 items-center justify-center rounded-2xl p-1 font-bold md:h-12 md:w-12 md:min-w-12",
-                          "bg-white/20 text-white",
+                          "relative flex h-10 w-32 items-center justify-start overflow-hidden rounded-2xl pr-1 md:h-12 md:w-40",
+                          "bg-primary",
                         )}
                       >
-                        {selectedSector?.position}
-                      </span>
-                      <input
-                        className={cn(
-                          "peer transparent h-full px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
-                          "text-white",
-                        )}
-                        placeholder="Nome da Área"
-                        value={selectedSector?.name}
-                        disabled
-                      />
+                        <span
+                          className={cn(
+                            "bg-primary/20 text-primary flex h-10 w-10 min-w-10 items-center justify-center rounded-2xl p-1 font-bold md:h-12 md:w-12 md:min-w-12",
+                            "bg-white/20 text-white",
+                          )}
+                        >
+                          {selectedSector?.position}
+                        </span>
+                        <input
+                          className={cn(
+                            "peer transparent h-full px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
+                            "text-white",
+                          )}
+                          placeholder="Nome da Área"
+                          value={selectedSector?.name}
+                          disabled
+                        />
 
-                      <div
-                        className={cn(
-                          "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
-                          "shadow-[0px_2px_7px_rgba(0,0,0,0.35)]",
-                        )}
-                      />
-                    </label>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-max max-w-40 bg-white p-1 text-sm break-words">
-                    <PopoverArrow className="fill-neutral-300" />
-                    <span>
-                      {layoutData.areas
-                        ?.flatMap((area) => area.sectors || []) // Flatten the sectors into an array
-                        ?.find(
-                          (sector) =>
-                            sector.position ===
-                            selectedEquipment?.position.slice(0, 3),
-                        )?.name || ""}
-                    </span>
-                  </PopoverContent>
-                </Popover>
-                <Popover
-                  open={isEquipmentNameHovered}
-                  onOpenChange={setIsEquipmentNameHovered}
-                >
-                  <PopoverTrigger
-                    asChild
-                    onMouseEnter={() => setIsEquipmentNameHovered(true)}
-                    onMouseLeave={() => setIsEquipmentNameHovered(false)}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsEquipmentNameHovered(false);
-                    }}
-                    onBlur={() => setIsEquipmentNameHovered(false)}
+                        <div
+                          className={cn(
+                            "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
+                            "shadow-[0px_2px_7px_rgba(0,0,0,0.35)]",
+                          )}
+                        />
+                      </label>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-max max-w-40 bg-white p-1 text-sm break-words">
+                      <PopoverArrow className="fill-neutral-300" />
+                      <span>
+                        {layoutData.areas
+                          ?.flatMap((area) => area.sectors || []) // Flatten the sectors into an array
+                          ?.find(
+                            (sector) =>
+                              sector.position ===
+                              selectedEquipment?.position.slice(0, 3),
+                          )?.name || ""}
+                      </span>
+                    </PopoverContent>
+                  </Popover>
+                  <Popover
+                    open={isEquipmentNameHovered}
+                    onOpenChange={setIsEquipmentNameHovered}
                   >
-                    <label
-                      className={cn(
-                        "relative flex h-10 w-32 items-center justify-start overflow-hidden rounded-2xl pr-1 md:h-12 md:w-40",
-                        "bg-primary",
-                      )}
+                    <PopoverTrigger
+                      asChild
+                      onMouseEnter={() => setIsEquipmentNameHovered(true)}
+                      onMouseLeave={() => setIsEquipmentNameHovered(false)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsEquipmentNameHovered(false);
+                      }}
+                      onBlur={() => setIsEquipmentNameHovered(false)}
                     >
-                      <span
+                      <label
                         className={cn(
-                          "bg-primary/20 text-primary flex h-10 w-10 min-w-10 items-center justify-center rounded-2xl p-1 font-bold md:h-12 md:w-12 md:min-w-12",
-                          "bg-white/20 text-white",
+                          "relative flex h-10 w-32 items-center justify-start overflow-hidden rounded-2xl pr-1 md:h-12 md:w-40",
+                          "bg-primary",
                         )}
                       >
-                        {selectedEquipment?.position}
-                      </span>
-                      <input
-                        className={cn(
-                          "peer transparent h-full px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
-                          "text-white",
-                        )}
-                        placeholder="Nome da Área"
-                        value={selectedEquipment?.name}
-                        disabled
-                      />
+                        <span
+                          className={cn(
+                            "bg-primary/20 text-primary flex h-10 w-10 min-w-10 items-center justify-center rounded-2xl p-1 font-bold md:h-12 md:w-12 md:min-w-12",
+                            "bg-white/20 text-white",
+                          )}
+                        >
+                          {selectedEquipment?.position}
+                        </span>
+                        <input
+                          className={cn(
+                            "peer transparent h-full px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
+                            "text-white",
+                          )}
+                          placeholder="Nome da Área"
+                          value={selectedEquipment?.name}
+                          disabled
+                        />
 
-                      <div
-                        className={cn(
-                          "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
-                          "shadow-[0px_2px_7px_rgba(0,0,0,0.35)]",
-                        )}
-                      />
-                    </label>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-max max-w-40 bg-white p-1 text-sm break-words">
-                    <PopoverArrow className="fill-neutral-300" />
-                    <span>{selectedEquipment?.name}</span>
-                  </PopoverContent>
-                </Popover>
-                <Popover
-                  open={isSetNameHovered}
-                  onOpenChange={setIsSetNameHovered}
-                >
-                  <PopoverTrigger
-                    asChild
-                    onMouseEnter={() => setIsSetNameHovered(true)}
-                    onMouseLeave={() => setIsSetNameHovered(false)}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsSetNameHovered(false);
-                    }}
-                    onBlur={() => setIsSetNameHovered(false)}
+                        <div
+                          className={cn(
+                            "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
+                            "shadow-[0px_2px_7px_rgba(0,0,0,0.35)]",
+                          )}
+                        />
+                      </label>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-max max-w-40 bg-white p-1 text-sm break-words">
+                      <PopoverArrow className="fill-neutral-300" />
+                      <span>{selectedEquipment?.name}</span>
+                    </PopoverContent>
+                  </Popover>
+                  <Popover
+                    open={isSetNameHovered}
+                    onOpenChange={setIsSetNameHovered}
                   >
-                    <label
-                      className={cn(
-                        "relative flex h-10 w-32 items-center justify-start overflow-hidden rounded-2xl pr-1 md:h-12 md:w-40",
-                        "bg-primary",
-                      )}
+                    <PopoverTrigger
+                      asChild
+                      onMouseEnter={() => setIsSetNameHovered(true)}
+                      onMouseLeave={() => setIsSetNameHovered(false)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsSetNameHovered(false);
+                      }}
+                      onBlur={() => setIsSetNameHovered(false)}
                     >
-                      <span
+                      <label
                         className={cn(
-                          "bg-primary/20 text-primary flex h-10 w-10 min-w-10 items-center justify-center rounded-2xl p-1 font-bold md:h-12 md:w-12 md:min-w-12",
-                          "bg-white/20 text-white",
+                          "relative flex h-10 w-32 items-center justify-start overflow-hidden rounded-2xl pr-1 md:h-12 md:w-40",
+                          "bg-primary",
                         )}
                       >
-                        {selectedSet?.position}
-                      </span>
-                      <input
-                        className={cn(
-                          "peer transparent h-full px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
-                          "text-white",
-                        )}
-                        placeholder="Nome da Área"
-                        value={selectedSet?.name}
-                        disabled
-                      />
+                        <span
+                          className={cn(
+                            "bg-primary/20 text-primary flex h-10 w-10 min-w-10 items-center justify-center rounded-2xl p-1 font-bold md:h-12 md:w-12 md:min-w-12",
+                            "bg-white/20 text-white",
+                          )}
+                        >
+                          {selectedSet?.position}
+                        </span>
+                        <input
+                          className={cn(
+                            "peer transparent h-full px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
+                            "text-white",
+                          )}
+                          placeholder="Nome da Área"
+                          value={selectedSet?.name}
+                          disabled
+                        />
 
-                      <div
-                        className={cn(
-                          "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
-                          "shadow-[0px_2px_7px_rgba(0,0,0,0.35)]",
-                        )}
-                      />
-                    </label>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-max max-w-40 bg-white p-1 text-sm break-words">
-                    <PopoverArrow className="fill-neutral-300" />
-                    <span>{selectedEquipment?.name}</span>
-                  </PopoverContent>
-                </Popover>
+                        <div
+                          className={cn(
+                            "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
+                            "shadow-[0px_2px_7px_rgba(0,0,0,0.35)]",
+                          )}
+                        />
+                      </label>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-max max-w-40 bg-white p-1 text-sm break-words">
+                      <PopoverArrow className="fill-neutral-300" />
+                      <span>{selectedEquipment?.name}</span>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <label className="border-primary relative flex h-8 w-60 items-center rounded-md border">
+                  <input
+                    className="transparent placeholder:neutral-300 absolute left-0 h-full w-[calc(100%-2rem)] rounded-md px-4 focus:outline-none"
+                    placeholder="Buscar Conjunto"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
+                  <div className="bg-primary absolute right-0 flex h-full w-8 items-center justify-center">
+                    <Search size={12} />
+                  </div>
+                </label>
               </div>
               {layoutData.areas
                 ?.flatMap((area) => area.sectors || [])
                 ?.flatMap((sector) => sector.equipments || [])
                 ?.flatMap((eq) => eq.sets || [])
                 ?.find((set) => set.position === selectedSet?.position)
-                ?.subSets?.slice(
-                  (currentSubSetPage - 1) * 6,
-                  currentSubSetPage * 6,
+                ?.subSets?.filter((subSet) =>
+                  subSet.name.toLowerCase().includes(query.toLowerCase()),
                 )
+                .slice((currentSubSetPage - 1) * 6, currentSubSetPage * 6)
                 .map((subSet, index) => (
                   <div key={index + "subSet"} className="flex flex-col gap-2">
                     <span className="text-primary text-xs md:text-sm">
                       {subSet.name}
                     </span>
                     <label
-                      onClick={() => setSelectedSubSet(subSet)} // Select a subSet on click
+                      onClick={() => {
+                        setSelectedSubSet(subSet);
+                        setQuery("");
+                      }} // Select a subSet on click
                       className={cn(
                         "relative flex h-10 items-center justify-end rounded-2xl px-2 md:h-12 md:px-4",
                         subSetHasFilledCip(subSet) ? "bg-primary" : "",
@@ -1060,132 +1109,145 @@ export function CipAccordion({
             </>
           ) : selectedEquipment ? (
             <>
-              <div className="col-span-3 flex items-center gap-2">
-                <button
-                  onClick={() => setSelectedEquipment(null)}
-                  className="text-primary flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-[0px_0px_10px_0px_rgba(0,0,0,0.35)] md:h-12 md:w-12"
-                >
-                  <ChevronLeft />
-                </button>
-                <Popover
-                  open={isSectorNameHovered}
-                  onOpenChange={setIsSectorNameHovered}
-                >
-                  <PopoverTrigger
-                    asChild
-                    onMouseEnter={() => setIsSectorNameHovered(true)}
-                    onMouseLeave={() => setIsSectorNameHovered(false)}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsSectorNameHovered(false);
-                    }}
-                    onBlur={() => setIsSectorNameHovered(false)}
+              <div className="col-span-3 flex flex-col gap-4">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSelectedEquipment(null)}
+                    className="text-primary flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-[0px_0px_10px_0px_rgba(0,0,0,0.35)] md:h-12 md:w-12"
                   >
-                    <label
-                      className={cn(
-                        "relative flex h-10 w-32 items-center justify-start overflow-hidden rounded-2xl pr-1 md:h-12 md:w-40",
-                        "bg-primary",
-                      )}
+                    <ChevronLeft />
+                  </button>
+                  <Popover
+                    open={isSectorNameHovered}
+                    onOpenChange={setIsSectorNameHovered}
+                  >
+                    <PopoverTrigger
+                      asChild
+                      onMouseEnter={() => setIsSectorNameHovered(true)}
+                      onMouseLeave={() => setIsSectorNameHovered(false)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsSectorNameHovered(false);
+                      }}
+                      onBlur={() => setIsSectorNameHovered(false)}
                     >
-                      <span
+                      <label
                         className={cn(
-                          "bg-primary/20 text-primary flex h-10 w-10 min-w-10 items-center justify-center rounded-2xl p-1 font-bold md:h-12 md:w-12 md:min-w-12",
-                          "bg-white/20 text-white",
+                          "relative flex h-10 w-32 items-center justify-start overflow-hidden rounded-2xl pr-1 md:h-12 md:w-40",
+                          "bg-primary",
                         )}
                       >
-                        {selectedSector?.position}
-                      </span>
-                      <input
-                        className={cn(
-                          "peer transparent h-full px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
-                          "text-white",
-                        )}
-                        placeholder="Nome da Área"
-                        value={selectedSector?.name}
-                        disabled
-                      />
+                        <span
+                          className={cn(
+                            "bg-primary/20 text-primary flex h-10 w-10 min-w-10 items-center justify-center rounded-2xl p-1 font-bold md:h-12 md:w-12 md:min-w-12",
+                            "bg-white/20 text-white",
+                          )}
+                        >
+                          {selectedSector?.position}
+                        </span>
+                        <input
+                          className={cn(
+                            "peer transparent h-full px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
+                            "text-white",
+                          )}
+                          placeholder="Nome da Área"
+                          value={selectedSector?.name}
+                          disabled
+                        />
 
-                      <div
-                        className={cn(
-                          "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
-                          "shadow-[0px_2px_7px_rgba(0,0,0,0.35)]",
-                        )}
-                      />
-                    </label>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-max max-w-40 bg-white p-1 text-sm break-words">
-                    <PopoverArrow className="fill-neutral-300" />
-                    <span>
-                      {layoutData.areas
-                        ?.flatMap((area) => area.sectors || []) // Flatten the sectors into an array
-                        ?.find(
-                          (sector) =>
-                            sector.position ===
-                            selectedEquipment?.position.slice(0, 3),
-                        )?.name || ""}
-                    </span>
-                  </PopoverContent>
-                </Popover>
-                <Popover
-                  open={isEquipmentNameHovered}
-                  onOpenChange={setIsEquipmentNameHovered}
-                >
-                  <PopoverTrigger
-                    asChild
-                    onMouseEnter={() => setIsEquipmentNameHovered(true)}
-                    onMouseLeave={() => setIsEquipmentNameHovered(false)}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsEquipmentNameHovered(false);
-                    }}
-                    onBlur={() => setIsEquipmentNameHovered(false)}
+                        <div
+                          className={cn(
+                            "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
+                            "shadow-[0px_2px_7px_rgba(0,0,0,0.35)]",
+                          )}
+                        />
+                      </label>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-max max-w-40 bg-white p-1 text-sm break-words">
+                      <PopoverArrow className="fill-neutral-300" />
+                      <span>
+                        {layoutData.areas
+                          ?.flatMap((area) => area.sectors || []) // Flatten the sectors into an array
+                          ?.find(
+                            (sector) =>
+                              sector.position ===
+                              selectedEquipment?.position.slice(0, 3),
+                          )?.name || ""}
+                      </span>
+                    </PopoverContent>
+                  </Popover>
+                  <Popover
+                    open={isEquipmentNameHovered}
+                    onOpenChange={setIsEquipmentNameHovered}
                   >
-                    <label
-                      className={cn(
-                        "relative flex h-10 w-32 items-center justify-start overflow-hidden rounded-2xl pr-1 md:h-12 md:w-40",
-                        "bg-primary",
-                      )}
+                    <PopoverTrigger
+                      asChild
+                      onMouseEnter={() => setIsEquipmentNameHovered(true)}
+                      onMouseLeave={() => setIsEquipmentNameHovered(false)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsEquipmentNameHovered(false);
+                      }}
+                      onBlur={() => setIsEquipmentNameHovered(false)}
                     >
-                      <span
+                      <label
                         className={cn(
-                          "bg-primary/20 text-primary flex h-10 w-10 min-w-10 items-center justify-center rounded-2xl p-1 font-bold md:h-12 md:w-12 md:min-w-12",
-                          "bg-white/20 text-white",
+                          "relative flex h-10 w-32 items-center justify-start overflow-hidden rounded-2xl pr-1 md:h-12 md:w-40",
+                          "bg-primary",
                         )}
                       >
-                        {selectedEquipment.position}
-                      </span>
-                      <input
-                        className={cn(
-                          "peer transparent h-full px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
-                          "text-white",
-                        )}
-                        placeholder="Nome da Área"
-                        value={selectedEquipment.name}
-                        disabled
-                      />
+                        <span
+                          className={cn(
+                            "bg-primary/20 text-primary flex h-10 w-10 min-w-10 items-center justify-center rounded-2xl p-1 font-bold md:h-12 md:w-12 md:min-w-12",
+                            "bg-white/20 text-white",
+                          )}
+                        >
+                          {selectedEquipment.position}
+                        </span>
+                        <input
+                          className={cn(
+                            "peer transparent h-full px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
+                            "text-white",
+                          )}
+                          placeholder="Nome da Área"
+                          value={selectedEquipment.name}
+                          disabled
+                        />
 
-                      <div
-                        className={cn(
-                          "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
-                          "shadow-[0px_2px_7px_rgba(0,0,0,0.35)]",
-                        )}
-                      />
-                    </label>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-max max-w-40 bg-white p-1 text-sm break-words">
-                    <PopoverArrow className="fill-neutral-300" />
-                    <span>{selectedEquipment.name}</span>
-                  </PopoverContent>
-                </Popover>
+                        <div
+                          className={cn(
+                            "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
+                            "shadow-[0px_2px_7px_rgba(0,0,0,0.35)]",
+                          )}
+                        />
+                      </label>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-max max-w-40 bg-white p-1 text-sm break-words">
+                      <PopoverArrow className="fill-neutral-300" />
+                      <span>{selectedEquipment.name}</span>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <label className="border-primary relative flex h-8 w-60 items-center rounded-md border">
+                  <input
+                    className="transparent placeholder:neutral-300 absolute left-0 h-full w-[calc(100%-2rem)] rounded-md px-4 focus:outline-none"
+                    placeholder="Buscar Conjunto"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
+                  <div className="bg-primary absolute right-0 flex h-full w-8 items-center justify-center">
+                    <Search size={12} />
+                  </div>
+                </label>
               </div>
               {layoutData.areas
                 ?.flatMap((area) => area.sectors || [])
                 ?.flatMap((sector) => sector.equipments || [])
                 ?.find((eq) => eq.position === selectedEquipment.position)
-                ?.sets?.slice(
-                  (currentSubSetPage - 1) * 6,
-                  currentSubSetPage * 6,
+                ?.sets?.filter((set) =>
+                  set.name.toLowerCase().includes(query.toLowerCase()),
                 )
+                .slice((currentSubSetPage - 1) * 6, currentSubSetPage * 6)
                 .map((item, index) => (
                   <div key={index + "set"} className="flex flex-col gap-2">
                     <span className="text-primary text-xs md:text-sm">
@@ -1198,6 +1260,7 @@ export function CipAccordion({
                         setCurrentEquipmentPage(1);
                         setCurrentSetPage(1);
                         setCurrentSubSetPage(1);
+                        setQuery("");
                       }}
                       className={cn(
                         "relative flex h-10 items-center justify-end rounded-2xl px-2 md:h-12 md:px-4",
@@ -1247,14 +1310,12 @@ export function CipAccordion({
           ) : (
             <>
               <div className="col-span-4 flex flex-col gap-2">
-                <span>
-                  Texto para Explicar que deverá selecionar um Setor antes do
-                  Equipamento:
-                </span>
                 <label className="border-primary relative flex h-8 w-60 items-center rounded-md border">
                   <input
                     className="transparent placeholder:neutral-300 absolute left-0 h-full w-[calc(100%-2rem)] rounded-md px-4 focus:outline-none"
-                    placeholder="Buscar Setor"
+                    placeholder="Buscar Equipamento"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
                   />
                   <div className="bg-primary absolute right-0 flex h-full w-8 items-center justify-center">
                     <Search size={12} />
@@ -1265,6 +1326,9 @@ export function CipAccordion({
                 layoutData.areas
                   .flatMap((area) => area.sectors || [])
                   .flatMap((sector) => sector.equipments || [])
+                  .filter((item) =>
+                    item.name.toLowerCase().includes(query.toLowerCase()),
+                  )
                   .slice(
                     (currentEquipmentPage - 1) * 12,
                     currentEquipmentPage * 12,
@@ -1289,6 +1353,7 @@ export function CipAccordion({
                           setCurrentSetPage(1);
                           setCurrentSubSetPage(1);
                           setSelectedEquipment(item);
+                          setQuery("");
                         }}
                         className={cn(
                           "relative flex h-10 cursor-pointer items-center justify-start rounded-2xl md:h-12",
