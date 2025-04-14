@@ -169,26 +169,23 @@ export function SetAccordion({
 
   const handleSelectEquipment = (equipment: EquipmentsProps) => {
     setSelectedEquipment(equipment);
+    // Reset pagination for sets on equipment change:
     setEquipmentPages(1);
 
-    // Properly reset sector values
+    // Properly reset set values
     if (equipment.sets && equipment.sets.length > 0) {
-      // Keep full equipment objects instead of replacing them with strings
-      const updatedSetValues = equipment.sets.map((set) => ({
-        ...set, // Copy all properties of the existing equipment
-      }));
+      // Copy the existing sets
+      const updatedSetValues = equipment.sets.map((set) => ({ ...set }));
 
       setInputSetsValues(updatedSetValues);
       setSetsArrayLength(equipment.sets.length);
-      setEquipmentPages((prevPages) =>
-        ((equipment.sets ? equipment.sets.length : 0) + 1) / 6 > prevPages
-          ? prevPages + 1
-          : prevPages,
-      );
+      // Simplified pagination calculation (if 6 items per page is desired)
+      setEquipmentPages(Math.ceil(equipment.sets.length / 6));
     } else {
-      // Initialize with default equipment structure instead of strings
+      // Initialize with default set structure
+      const defaultLength = 3;
       setInputSetsValues(
-        Array(3).fill({
+        Array(defaultLength).fill({
           name: "",
           code: "",
           id: "",
@@ -196,8 +193,9 @@ export function SetAccordion({
           subSets: null,
         }),
       );
-      setSetsArrayLength(3);
+      setSetsArrayLength(defaultLength);
     }
+    // Consider if this should be "setCurrentSetPage" rather than "setCurrentSectorPage" for clarity
     setCurrentSectorPage(1);
   };
 
