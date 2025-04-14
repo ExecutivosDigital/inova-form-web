@@ -13,11 +13,13 @@ import {
   PopoverTrigger,
 } from "@/components/global/ui/popover";
 import { ScrollArea } from "@/components/global/ui/scroll-area";
+import { useApiContext } from "@/context/ApiContext";
 import { useLayoutContext } from "@/context/LayoutContext";
 import { cn } from "@/lib/utils";
 import { ArrowRight, ChevronLeft, Search, Upload } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 import { v4 } from "uuid";
 
 interface SetAccordionProps {
@@ -29,7 +31,9 @@ export function SetAccordion({
   selectedLayoutStep,
   setSelectedLayoutStep,
 }: SetAccordionProps) {
-  const { layoutData, setLayoutData, originalSets } = useLayoutContext();
+  const { layoutData, setLayoutData, originalSets, GetSets } =
+    useLayoutContext();
+  const { PostAPI } = useApiContext();
   const [isImportHovered, setIsImportHovered] = useState(false);
   const [selectedSector, setSelectedSector] = useState<SectorProps | null>(
     null,
@@ -198,60 +202,57 @@ export function SetAccordion({
   };
 
   async function HandleCreateSets(newSets?: SetProps[]) {
-    console.log("newSets: ", newSets);
-    // // If no new equipments are provided, get them by flattening the equipments from all sectors in all areas.
-    // const setsToSend =
-    //   newSets ||
-    //   layoutData.areas?.flatMap((area) =>
-    //     area.sectors?.flatMap((sector) => sector.equipments?.flatMap((eq) => eq.sets)),
-    //   );
+    // If no new equipments are provided, get them by flattening the equipments from all sectors in all areas.
+    const setsToSend =
+      newSets ||
+      layoutData.areas?.flatMap((area) =>
+        area.sectors?.flatMap((sector) =>
+          sector.equipments?.flatMap((eq) => eq.sets),
+        ),
+      );
 
-    // const newEquipmentResponse = await PostAPI(
-    //   "/equipment/multi",
-    //   {
-    //     equipments: setsToSend?.map((set) => {
-    //       // Check if the equipment has a valid position string.
-    //       const parts = set?.position.split(".");
-    //       let equipmentId = "";
-    //       if (parts && parts.length >= 3) {
-    //         // Join the first two parts to get the sector position (e.g., "1.1")
-    //         const setEquipmentPos = `${parts[0]}.${parts[1]}.${parts[2]}`;
+    const newSetResponse = await PostAPI(
+      "/set/multi",
+      {
+        sets: setsToSend?.map((set) => {
+          // Check if the equipment has a valid position string.
+          const parts = set?.position.split(".");
+          let equipmentId = "";
+          if (parts && parts.length >= 3) {
+            // Join the first two parts to get the sector position (e.g., "1.1")
+            const equipmentSectorPos = `${parts[0]}.${parts[1]}.${parts[2]}`;
 
-    //         // Flatten all sectors from all areas and find the matching sector.
-    //         const equipment = layoutData.areas
-    //           ?.flatMap((area) => area.sectors || [])
-    //           .find((sec) => sec.position === setEquipmentPos);
+            // Flatten all sectors from all areas and find the matching sector.
+            const equipment = layoutData.areas
+              ?.flatMap(
+                (area) =>
+                  area.sectors?.flatMap((sector) => sector.equipments || []) ||
+                  [],
+              )
+              .find((eq) => eq.position === equipmentSectorPos);
 
-    //         // Get the sector's id, or leave it as an empty string if not found.
-    //         equipmentId = sector?.id as string;
-    //       }
-    //       return {
-    //         name: equipment?.name,
-    //         tag: equipment?.tag,
-    //         type: equipment?.type,
-    //         maker: equipment?.maker,
-    //         model: equipment?.model,
-    //         year: equipment?.year,
-    //         description: equipment?.description,
-    //         position: equipment?.position,
-    //         sectorId,
-    //         photos: [
-    //           {
-    //             url: fileUrl,
-    //             fullUrl: fullFileUrl,
-    //           },
-    //         ],
-    //       };
-    //     }),
-    //   },
-    //   true,
-    // );
-    // if (newEquipmentResponse.status === 200) {
-    //   toast.success("Equipamentos cadastrados com sucesso");
-    //   await GetEquipments(); // re-fetch areas from the API
-    //   return setSelectedLayoutStep(4);
-    // }
-    // return toast.error("Erro ao cadastrar Equipamentos");
+            // Get the sector's id, or leave it as an empty string if not found.
+            equipmentId = equipment?.id as string;
+            console.log("equipmentId: ", equipmentId);
+          }
+
+          return {
+            name: set?.name,
+            code: set?.code,
+            position: set?.position,
+            equipmentId,
+          };
+        }),
+      },
+      true,
+    );
+    console.log("newSetResponse: ", newSetResponse);
+    if (newSetResponse.status === 200) {
+      toast.success("Conjuntos cadastrados com sucesso");
+      await GetSets(); // re-fetch areas from the API
+      return setSelectedLayoutStep(5);
+    }
+    return toast.error("Erro ao cadastrar Conjuntos");
   }
 
   useEffect(() => {
@@ -348,14 +349,14 @@ export function SetAccordion({
                 }}
                 className={cn(
                   "bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4",
-                  layoutData &&
-                    layoutData.areas &&
-                    layoutData.areas.find((area) =>
-                      area.sectors?.find((sector) =>
-                        sector.equipments?.find((eq) => !eq.sets),
-                      ),
-                    ) &&
-                    "pointer-events-none cursor-not-allowed opacity-50",
+                  // layoutData &&
+                  //   layoutData.areas &&
+                  //   layoutData.areas.find((area) =>
+                  //     area.sectors?.find((sector) =>
+                  //       sector.equipments?.find((eq) => !eq.sets),
+                  //     ),
+                  //   ) &&
+                  //   "pointer-events-none cursor-not-allowed opacity-50",
                 )}
               >
                 <span className="hidden md:block">Avançar 1.5</span>
@@ -714,14 +715,22 @@ export function SetAccordion({
                         }}
                         className={cn(
                           "relative flex h-10 cursor-pointer items-center justify-start rounded-2xl md:h-12",
-                          item.equipments?.find((eq) => eq.sets) &&
+                          item.equipments &&
+                            item.equipments
+                              .flatMap((eq) => eq)
+                              .find((eq) => eq.sets && eq.sets.length !== 0) &&
                             "bg-primary",
                         )}
                       >
                         <span
                           className={cn(
                             "bg-primary/20 text-primary flex h-10 w-10 items-center justify-center rounded-2xl p-1 font-bold md:h-12 md:w-12",
-                            item.equipments?.find((eq) => eq.sets) &&
+                            item.equipments &&
+                              item.equipments
+                                .flatMap((eq) => eq)
+                                .find(
+                                  (eq) => eq.sets && eq.sets.length !== 0,
+                                ) &&
                               "bg-white/20 text-white",
                           )}
                         >
@@ -730,7 +739,12 @@ export function SetAccordion({
                         <input
                           className={cn(
                             "peer transparent absolute right-0 h-full w-[calc(100%-2.5rem)] px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:w-[calc(100%-3rem)] md:px-4 md:text-sm",
-                            item.equipments?.find((eq) => eq.sets) &&
+                            item.equipments &&
+                              item.equipments
+                                .flatMap((eq) => eq)
+                                .find(
+                                  (eq) => eq.sets && eq.sets.length !== 0,
+                                ) &&
                               "text-white",
                           )}
                           placeholder="Nome da Área"
@@ -741,7 +755,12 @@ export function SetAccordion({
                         <div
                           className={cn(
                             "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
-                            item.equipments?.find((eq) => eq.sets) &&
+                            item.equipments &&
+                              item.equipments
+                                .flatMap((eq) => eq)
+                                .find(
+                                  (eq) => eq.sets && eq.sets.length !== 0,
+                                ) &&
                               "shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
                           )}
                         />

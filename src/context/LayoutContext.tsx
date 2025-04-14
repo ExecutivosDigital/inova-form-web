@@ -137,8 +137,57 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
   }
 
   async function GetSets() {
-    const sets = await GetAPI("/set", true);
-    console.log("sets: ", sets);
+    const setsResponse = await GetAPI("/set", true);
+    if (setsResponse.status === 200) {
+      // Assume setsResponse.body.sets is an array of SetProps.
+      const fetchedSets: SetProps[] = setsResponse.body.sets;
+
+      // Store the fetched sets separately if needed.
+      setOriginalSets(fetchedSets);
+
+      // Update the layoutData state by assigning each set to its proper equipment.
+      setLayoutData((prevLayout) => {
+        if (!prevLayout.areas) return prevLayout;
+
+        const updatedAreas = prevLayout.areas.map((area) => {
+          if (!area.sectors) return area;
+
+          const updatedSectors = area.sectors.map((sector) => {
+            if (!sector.equipments) return sector;
+
+            const updatedEquipments = sector.equipments.map((equipment) => {
+              // For each equipment, filter the sets that belong to it.
+              // We assume that if an equipment's position is "A.B.C", then
+              // a set with a position like "A.B.C.X" belongs to that equipment.
+              const equipmentSets = fetchedSets.filter((set) => {
+                if (!set.position || !equipment.position) return false;
+                return set.position.startsWith(equipment.position + ".");
+              });
+
+              return {
+                ...equipment,
+                sets: equipmentSets.length > 0 ? equipmentSets : null,
+              };
+            });
+
+            return {
+              ...sector,
+              equipments: updatedEquipments,
+            };
+          });
+
+          return {
+            ...area,
+            sectors: updatedSectors,
+          };
+        });
+
+        return {
+          ...prevLayout,
+          areas: updatedAreas,
+        };
+      });
+    }
   }
 
   useEffect(() => {
