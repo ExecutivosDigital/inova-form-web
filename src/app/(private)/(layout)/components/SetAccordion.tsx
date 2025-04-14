@@ -292,7 +292,7 @@ export function SetAccordion({
               </span>
             </div>
           </div>
-          {selectedLayoutStep === 4 && (
+          {selectedLayoutStep === 4 && selectedEquipment === null && (
             <div className="flex items-center gap-4">
               <Popover open={isImportHovered} onOpenChange={setIsImportHovered}>
                 <PopoverTrigger
@@ -623,7 +623,7 @@ export function SetAccordion({
                 .map((item, index) => (
                   <div key={index} className="flex flex-col gap-2">
                     <span className="text-primary text-xs md:text-sm">
-                      {item.name}
+                      {item.tag}
                     </span>
                     <label
                       onClick={() => handleSelectEquipment(item)}
@@ -638,7 +638,7 @@ export function SetAccordion({
                           item.sets ? "text-white" : "",
                         )}
                         placeholder="TAG do Equipamento"
-                        value={item.tag}
+                        value={item.name}
                         readOnly
                       />
                       <Image

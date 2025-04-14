@@ -204,16 +204,20 @@ export function EquipmentAccordion({
     setCurrentEquipmentPage(1);
   };
 
-  const isEquipmentFullyFilled = (equipment: EquipmentsProps) => {
-    return (
-      equipment.name &&
+  const isEquipmentFullyFilled = (
+    equipment: EquipmentsProps,
+    photos?: boolean,
+  ) => {
+    return equipment.name &&
       equipment.tag &&
       equipment.type &&
       equipment.maker &&
       equipment.model &&
       equipment.year &&
-      equipment.description
-    );
+      equipment.description &&
+      photos === true
+      ? true
+      : equipment.photos;
   };
 
   async function handleUpload(file: File) {
@@ -457,7 +461,7 @@ export function EquipmentAccordion({
               </span>
             </div>
           </div>
-          {selectedLayoutStep === 3 && (
+          {selectedLayoutStep === 3 && selectedEquipment === null && (
             <div className="flex items-center gap-4">
               <Popover open={isImportHovered} onOpenChange={setIsImportHovered}>
                 <PopoverTrigger
@@ -615,7 +619,10 @@ export function EquipmentAccordion({
                     }}
                   />
                   {isUploadingFile ? (
-                    <Loader2 className="w-4 animate-spin" />
+                    <>
+                      <span>Carregando...</span>
+                      <Loader2 className="w-4 animate-spin" />
+                    </>
                   ) : equipmentHasPhotos ? (
                     "Fotos Inseridas"
                   ) : (
@@ -781,7 +788,16 @@ export function EquipmentAccordion({
                 <div className="flex h-10 items-center justify-end gap-4 md:h-12">
                   <button
                     onClick={() => {
-                      setSelectedEquipment(null);
+                      if (
+                        isEquipmentFullyFilled(
+                          inputEquipmentValues[selectedEquipment],
+                          true,
+                        )
+                      ) {
+                        setSelectedEquipment(null);
+                      } else {
+                        toast.error("Por favor, preencha todos os campos.");
+                      }
                     }}
                     className="h-10 w-full rounded-xl bg-green-500 p-2 text-sm text-white shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] md:w-2/5"
                   >
@@ -866,6 +882,7 @@ export function EquipmentAccordion({
                           "relative flex h-10 items-center justify-end rounded-2xl px-2 md:h-12 md:px-4",
                           isEquipmentFullyFilled(
                             inputEquipmentValues[stateIndex],
+                            true,
                           )
                             ? "bg-primary"
                             : "",
@@ -876,6 +893,7 @@ export function EquipmentAccordion({
                             "peer transparent absolute left-0 h-full w-[calc(100%-2rem)] px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
                             isEquipmentFullyFilled(
                               inputEquipmentValues[stateIndex],
+                              true,
                             )
                               ? "text-white"
                               : "",
@@ -893,6 +911,7 @@ export function EquipmentAccordion({
                             "absolute h-max w-5 object-contain transition duration-200 peer-focus:translate-x-2 peer-focus:opacity-0",
                             isEquipmentFullyFilled(
                               inputEquipmentValues[stateIndex],
+                              true,
                             )
                               ? "opacity-0"
                               : "peer-focus:translate-x-2 peer-focus:opacity-0",
@@ -902,6 +921,7 @@ export function EquipmentAccordion({
                           src={
                             isEquipmentFullyFilled(
                               inputEquipmentValues[stateIndex],
+                              true,
                             )
                               ? "/icons/checkCheckWhite.png"
                               : "/icons/checkCheck.png"
@@ -913,6 +933,7 @@ export function EquipmentAccordion({
                             "absolute h-max w-5 -translate-x-2 object-contain opacity-0 transition duration-200 peer-focus:translate-x-0 peer-focus:opacity-100",
                             isEquipmentFullyFilled(
                               inputEquipmentValues[stateIndex],
+                              true,
                             )
                               ? "translate-x-0 opacity-100"
                               : "-translate-x-2 opacity-0",
@@ -923,6 +944,7 @@ export function EquipmentAccordion({
                             "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
                             isEquipmentFullyFilled(
                               inputEquipmentValues[stateIndex],
+                              true,
                             )
                               ? "shadow-[0px_2px_7px_rgba(0,0,0,0.5)]"
                               : "",

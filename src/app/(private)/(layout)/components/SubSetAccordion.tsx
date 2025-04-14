@@ -276,39 +276,35 @@ export function SubSetAccordion({
     return toast.error("Erro ao cadastrar Subconjuntos");
   }
 
-  // Equipment Pagination
   useEffect(() => {
-    if (!layoutData.areas || !selectedSector?.position) return;
+    if (!layoutData.areas) return;
 
-    // Find the sector that matches the selectedSector position
-    const selectedSectorData = layoutData.areas
-      .flatMap((area) => area.sectors || [])
-      .find((sector) => sector.position === selectedSector.position);
+    // Flatten all equipments across all areas
+    const allEquipments = layoutData.areas.flatMap((area) =>
+      area.sectors
+        ? area.sectors.flatMap((sector) => sector.equipments || [])
+        : [],
+    );
 
-    // If the sector has equipments, calculate equipment pagination pages.
-    if (selectedSectorData?.equipments?.length) {
-      setEquipmentPages(Math.ceil(selectedSectorData.equipments.length / 6));
-    } else {
-      // In case there are no equipments, reset to 1 page.
-      setEquipmentPages(1);
-    }
-  }, [layoutData.areas, selectedSector?.position]);
+    // Calculate pages based on 12 equipments per page.
+    setEquipmentPages(
+      allEquipments.length > 0 ? Math.ceil(allEquipments.length / 12) : 1,
+    );
+  }, [layoutData.areas]);
 
-  // Set Pagination
   useEffect(() => {
     if (!layoutData.areas || !selectedEquipment?.position) return;
 
-    // Find the equipment that matches the selectedEquipment position.
+    // Flatten and find the equipment matching selectedEquipment.position
     const selectedEquipmentData = layoutData.areas
       .flatMap((area) => area.sectors || [])
       .flatMap((sector) => sector.equipments || [])
       .find((equipment) => equipment.position === selectedEquipment.position);
 
-    // If the equipment has sets, calculate set pagination pages.
+    // If the equipment has sets, calculate pages based on 6 sets per page.
     if (selectedEquipmentData?.sets?.length) {
       setSetsPages(Math.ceil(selectedEquipmentData.sets.length / 6));
     } else {
-      // If no sets exist, default to 1 page.
       setSetsPages(1);
     }
   }, [layoutData.areas, selectedEquipment?.position]);
@@ -331,7 +327,7 @@ export function SubSetAccordion({
               </span>
             </div>
           </div>
-          {selectedLayoutStep === 5 && (
+          {selectedLayoutStep === 5 && selectedSet === null && (
             <div className="flex items-center gap-4">
               <Popover open={isImportHovered} onOpenChange={setIsImportHovered}>
                 <PopoverTrigger

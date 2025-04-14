@@ -449,7 +449,7 @@ export function CipAccordion({
               </span>
             </div>
           </div>
-          {selectedLayoutStep === 6 && (
+          {selectedLayoutStep === 6 && selectedSubSet === null && (
             <div className="flex items-center gap-4">
               <Popover open={isImportHovered} onOpenChange={setIsImportHovered}>
                 <PopoverTrigger
@@ -770,7 +770,7 @@ export function CipAccordion({
                         <input
                           type="text"
                           className="h-10 w-full rounded-2xl bg-white p-2 px-2 text-xs shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] placeholder:text-neutral-300 focus:outline-none md:h-12 md:px-4 md:text-sm"
-                          placeholder="Identificação do Subconjunto"
+                          placeholder="Código Preenchido automaticamente"
                           onChange={(e) =>
                             handleInputChange(index, "code", e.target.value)
                           }
