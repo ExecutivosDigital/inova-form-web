@@ -18,11 +18,13 @@ import {
   PopoverTrigger,
 } from "@/components/global/ui/popover";
 import { ScrollArea } from "@/components/global/ui/scroll-area";
+import { useApiContext } from "@/context/ApiContext";
 import { useLayoutContext } from "@/context/LayoutContext";
 import { cn } from "@/lib/utils";
 import { ArrowRight, ChevronLeft, Search, Upload } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 import { v4 } from "uuid";
 
 interface SubSetAccordionProps {
@@ -34,7 +36,9 @@ export function SubSetAccordion({
   selectedLayoutStep,
   setSelectedLayoutStep,
 }: SubSetAccordionProps) {
-  const { layoutData, setLayoutData } = useLayoutContext();
+  const { layoutData, setLayoutData, originalSubSets, GetSubSets } =
+    useLayoutContext();
+  const { PostAPI } = useApiContext();
   const [isImportHovered, setIsImportHovered] = useState(false);
   const [selectedSector, setSelectedSector] = useState<SectorProps | null>(
     null,
@@ -43,7 +47,9 @@ export function SubSetAccordion({
     useState<EquipmentsProps | null>(null);
   const [selectedSet, setSelectedSet] = useState<SetProps | null>(null);
   const [equipmentPages, setEquipmentPages] = useState<number>(1);
+  const [setsPages, setSetsPages] = useState<number>(1);
   const [currentEquipmentPage, setCurrentEquipmentPage] = useState(1);
+  const [currentSetPage, setCurrentSetPage] = useState(1);
   const [isSectorNameHovered, setIsSectorNameHovered] = useState(false);
   const [isEquipmentNameHovered, setIsEquipmentNameHovered] = useState(false);
   const [isSetNameHovered, setIsSetNameHovered] = useState(false);
@@ -60,21 +66,20 @@ export function SubSetAccordion({
 
   const handleSelectSet = (set: SetProps) => {
     setSelectedSet(set);
-    setSubSetsArrayLength(3); // Reset array length
+    // Reset subsets length and layout step
+    setSubSetsArrayLength(3);
     setSelectedLayoutStep(6);
 
     if (set.subSets && set.subSets.length > 0) {
-      // Keep full subSet objects instead of replacing them with strings
-      const updatedSubSetValues = set.subSets.map((subSet) => ({
-        ...subSet, // Copy all properties of the existing subSet
-      }));
-
+      // Copy the existing subsets
+      const updatedSubSetValues = set.subSets.map((subSet) => ({ ...subSet }));
       setInputSubSetsValues(updatedSubSetValues);
       setSubSetsArrayLength(set.subSets.length);
     } else {
-      // Initialize with default subSet structure instead of strings
+      const defaultLength = 3;
+      // Initialize with default subset structure
       setInputSubSetsValues(
-        Array(5).fill({
+        Array(defaultLength).fill({
           name: "",
           code: "",
           id: "",
@@ -82,7 +87,7 @@ export function SubSetAccordion({
           cip: null,
         }),
       );
-      setSubSetsArrayLength(3);
+      setSubSetsArrayLength(defaultLength);
     }
   };
 
@@ -214,24 +219,100 @@ export function SubSetAccordion({
     ]);
   };
 
-  useEffect(() => {
-    if (!layoutData) return;
-
-    if (selectedEquipment) {
-      // If an equipment is selected, pagination should depend on the number of sets
-      setEquipmentPages(
-        Math.ceil((selectedEquipment.sets?.length || 0) / 12) || 1,
+  async function HandleCreateSubSets(newSubSets?: SubSetProps[]) {
+    // If no new equipments are provided, get them by flattening the equipments from all sectors in all areas.
+    const subSetsToSend =
+      newSubSets ||
+      layoutData.areas?.flatMap((area) =>
+        area.sectors?.flatMap((sector) =>
+          sector.equipments?.flatMap((eq) =>
+            eq.sets?.flatMap((set) => set.subSets),
+          ),
+        ),
       );
-    } else {
-      // If no equipment is selected, pagination should depend on the number of equipments in the sector
-      const totalEquipments =
-        layoutData?.areas
-          ?.flatMap((area) => area.sectors || [])
-          ?.flatMap((sector) => sector.equipments || []).length || 0;
 
-      setEquipmentPages(Math.ceil(totalEquipments / 12) || 1);
+    const newSubSetResponse = await PostAPI(
+      "/subset/multi",
+      {
+        subsets: subSetsToSend?.map((subset) => {
+          // Check if the equipment has a valid position string.
+          const parts = subset?.position.split(".");
+          let setId = "";
+          if (parts && parts.length >= 4) {
+            // Join the first two parts to get the sector position (e.g., "1.1")
+            const setPos = `${parts[0]}.${parts[1]}.${parts[2]}.${parts[3]}`;
+
+            // Flatten all sectors from all areas and find the matching sector.
+            const set = layoutData.areas
+              ?.flatMap(
+                (area) =>
+                  area.sectors?.flatMap(
+                    (sector) =>
+                      sector.equipments?.flatMap((eq) => eq.sets || []) || [],
+                  ) || [],
+              )
+              .find((set) => set.position === setPos);
+
+            // Get the sector's id, or leave it as an empty string if not found.
+            setId = set?.id as string;
+            console.log("setId: ", setId);
+          }
+
+          return {
+            name: subset?.name,
+            code: subset?.code,
+            position: subset?.position,
+            setId,
+          };
+        }),
+      },
+      true,
+    );
+    console.log("newSubSetResponse: ", newSubSetResponse);
+    if (newSubSetResponse.status === 200) {
+      toast.success("Subconjuntos cadastrados com sucesso");
+      await GetSubSets(); // re-fetch areas from the API
+      return setSelectedLayoutStep(5);
     }
-  }, [layoutData, selectedEquipment]);
+    return toast.error("Erro ao cadastrar Subconjuntos");
+  }
+
+  // Equipment Pagination
+  useEffect(() => {
+    if (!layoutData.areas || !selectedSector?.position) return;
+
+    // Find the sector that matches the selectedSector position
+    const selectedSectorData = layoutData.areas
+      .flatMap((area) => area.sectors || [])
+      .find((sector) => sector.position === selectedSector.position);
+
+    // If the sector has equipments, calculate equipment pagination pages.
+    if (selectedSectorData?.equipments?.length) {
+      setEquipmentPages(Math.ceil(selectedSectorData.equipments.length / 6));
+    } else {
+      // In case there are no equipments, reset to 1 page.
+      setEquipmentPages(1);
+    }
+  }, [layoutData.areas, selectedSector?.position]);
+
+  // Set Pagination
+  useEffect(() => {
+    if (!layoutData.areas || !selectedEquipment?.position) return;
+
+    // Find the equipment that matches the selectedEquipment position.
+    const selectedEquipmentData = layoutData.areas
+      .flatMap((area) => area.sectors || [])
+      .flatMap((sector) => sector.equipments || [])
+      .find((equipment) => equipment.position === selectedEquipment.position);
+
+    // If the equipment has sets, calculate set pagination pages.
+    if (selectedEquipmentData?.sets?.length) {
+      setSetsPages(Math.ceil(selectedEquipmentData.sets.length / 6));
+    } else {
+      // If no sets exist, default to 1 page.
+      setSetsPages(1);
+    }
+  }, [layoutData.areas, selectedEquipment?.position]);
 
   return (
     <AccordionItem value="5" onClick={() => setSelectedLayoutStep(5)}>
@@ -276,20 +357,47 @@ export function SubSetAccordion({
               <div
                 onClick={(e) => {
                   e.stopPropagation();
-                  setSelectedLayoutStep(6);
+                  const currentSubSets =
+                    layoutData.areas?.flatMap(
+                      (area) =>
+                        area.sectors?.flatMap(
+                          (sector) =>
+                            sector.equipments?.flatMap(
+                              (eq) =>
+                                eq.sets?.flatMap((set) => set.subSets || []) ||
+                                [],
+                            ) || [],
+                        ) || [],
+                    ) || [];
+                  let newSubSets: SubSetProps[] = [];
+                  if (originalSubSets) {
+                    newSubSets = currentSubSets.filter(
+                      (subset) =>
+                        !originalSubSets.find(
+                          (original) => original.position === subset.position,
+                        ),
+                    );
+                  } else {
+                    newSubSets = currentSubSets;
+                  }
+                  if (newSubSets.length > 0) {
+                    HandleCreateSubSets(newSubSets);
+                  } else {
+                    setSelectedLayoutStep(6);
+                  }
                 }}
                 className={cn(
                   "bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4",
-                  layoutData &&
-                    layoutData.areas &&
-                    layoutData.areas.find((area) =>
-                      area.sectors?.find((sector) =>
-                        sector.equipments?.find((eq) =>
-                          eq.sets?.find((set) => !set.subSets),
-                        ),
-                      ),
-                    ) &&
-                    "pointer-events-none cursor-not-allowed opacity-50",
+                  // layoutData &&
+                  //   layoutData.areas &&
+                  //   layoutData.areas.find((area) =>
+                  //     area.sectors?.find((sector) =>
+                  //       sector.equipments?.find((eq) =>
+                  //         eq.sets?.find((set) => !set.subSets),
+                  //       ),
+                  //     ),
+                  //   ) &&
+                  //   "pointer-events-none cursor-not-allowed opacity-50",
                 )}
               >
                 <span className="hidden md:block">Avançar 1.6</span>
@@ -672,7 +780,8 @@ export function SubSetAccordion({
                 ?.flatMap((area) => area.sectors || [])
                 .flatMap((sector) => sector.equipments || [])
                 .find((eq) => eq.position === selectedEquipment.position)
-                ?.sets?.map((item, index) => (
+                ?.sets?.slice((currentSetPage - 1) * 6, currentSetPage * 6)
+                .map((item, index) => (
                   <div key={index} className="flex flex-col gap-2">
                     <span className="text-primary text-xs md:text-sm">
                       {item.name}
@@ -775,14 +884,22 @@ export function SubSetAccordion({
                         }}
                         className={cn(
                           "relative flex h-10 cursor-pointer items-center justify-start rounded-2xl md:h-12",
-                          item.sets?.find((set) => set.subSets) && "bg-primary",
+                          item.sets
+                            ?.flatMap((set) => set)
+                            .find(
+                              (set) => set.subSets && set.subSets.length !== 0,
+                            ) && "bg-primary",
                         )}
                       >
                         <span
                           className={cn(
                             "bg-primary/20 text-primary flex h-10 w-10 items-center justify-center rounded-2xl p-1 font-bold md:h-12 md:w-12",
-                            item.sets?.find((set) => set.subSets) &&
-                              "bg-white/20 text-white",
+                            item.sets
+                              ?.flatMap((set) => set)
+                              .find(
+                                (set) =>
+                                  set.subSets && set.subSets.length !== 0,
+                              ) && "bg-white/20 text-white",
                           )}
                         >
                           {item.position}
@@ -790,8 +907,12 @@ export function SubSetAccordion({
                         <input
                           className={cn(
                             "peer transparent absolute right-0 h-full w-[calc(100%-2.5rem)] px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:w-[calc(100%-3rem)] md:px-4 md:text-sm",
-                            item.sets?.find((set) => set.subSets) &&
-                              "text-white",
+                            item.sets
+                              ?.flatMap((set) => set)
+                              .find(
+                                (set) =>
+                                  set.subSets && set.subSets.length !== 0,
+                              ) && "text-white",
                           )}
                           placeholder="Nome da Área"
                           value={item.name}
@@ -801,8 +922,12 @@ export function SubSetAccordion({
                         <div
                           className={cn(
                             "absolute left-0 z-10 h-full w-full rounded-2xl shadow-[0px_2px_7px_rgba(0,0,0,0.15)] transition duration-200 peer-focus:shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
-                            item.sets?.find((set) => set.subSets) &&
-                              "shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
+                            item.sets
+                              ?.flatMap((set) => set)
+                              .find(
+                                (set) =>
+                                  set.subSets && set.subSets.length !== 0,
+                              ) && "shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
                           )}
                         />
                       </label>
@@ -832,9 +957,13 @@ export function SubSetAccordion({
         </div>
         <div className={cn(selectedSet && "hidden")}>
           <CustomPagination
-            currentPage={currentEquipmentPage}
-            setCurrentPage={setCurrentEquipmentPage}
-            pages={equipmentPages}
+            currentPage={
+              selectedEquipment ? currentSetPage : currentEquipmentPage
+            }
+            setCurrentPage={
+              selectedEquipment ? setCurrentSetPage : setCurrentEquipmentPage
+            }
+            pages={selectedEquipment ? setsPages : equipmentPages}
           />
         </div>
       </AccordionContent>

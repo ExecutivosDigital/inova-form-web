@@ -6,6 +6,7 @@ import {
   LayoutTypeProps,
   SectorProps,
   SetProps,
+  SubSetProps,
 } from "@/@types/LayoutTypes";
 import { createContext, useContext, useEffect, useState } from "react";
 import { useApiContext } from "./ApiContext";
@@ -29,10 +30,15 @@ interface LayoutContextProps {
   >;
   originalSets: SetProps[] | null;
   setOriginalSets: React.Dispatch<React.SetStateAction<SetProps[] | null>>;
+  originalSubSets: SubSetProps[] | null;
+  setOriginalSubSets: React.Dispatch<
+    React.SetStateAction<SubSetProps[] | null>
+  >;
   GetAreas: () => void;
   GetSectors: () => void;
   GetEquipments: () => void;
   GetSets: () => void;
+  GetSubSets: () => void;
 }
 
 const LayoutContext = createContext<LayoutContextProps | undefined>(undefined);
@@ -55,6 +61,9 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
     EquipmentsProps[] | null
   >(null);
   const [originalSets, setOriginalSets] = useState<SetProps[] | null>(null);
+  const [originalSubSets, setOriginalSubSets] = useState<SubSetProps[] | null>(
+    null,
+  );
   const [cipCount, setCipCount] = useState(1);
 
   console.log("layoutData: ", layoutData);
@@ -190,12 +199,77 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
     }
   }
 
+  async function GetSubSets() {
+    const subSetsResponse = await GetAPI("/subset", true);
+    console.log("subSetsResponse", subSetsResponse);
+    if (subSetsResponse.status === 200) {
+      // Assume subSetsResponse.body.subSets is an array of SubSetProps.
+      const fetchedSubSets: SubSetProps[] = subSetsResponse.body.subsets;
+
+      // Optionally store the fetched subsets separately.
+      setOriginalSubSets(fetchedSubSets);
+
+      // Update layoutData by assigning each subset to its proper set.
+      setLayoutData((prevLayout) => {
+        if (!prevLayout.areas) return prevLayout;
+
+        const updatedAreas = prevLayout.areas.map((area) => {
+          if (!area.sectors) return area;
+
+          const updatedSectors = area.sectors.map((sector) => {
+            if (!sector.equipments) return sector;
+
+            const updatedEquipments = sector.equipments.map((equipment) => {
+              if (!equipment.sets) return equipment;
+
+              const updatedSets = equipment.sets.map((set) => {
+                // For each set, filter the subsets that belong to it.
+                // We assume that if a set's position is "A.B.C.D", then
+                // a subset with a position like "A.B.C.D.X" belongs to that set.
+                const setSubSets = fetchedSubSets.filter((subSet) => {
+                  if (!subSet.position || !set.position) return false;
+                  return subSet.position.startsWith(set.position + ".");
+                });
+
+                return {
+                  ...set,
+                  subSets: setSubSets.length > 0 ? setSubSets : null,
+                };
+              });
+
+              return {
+                ...equipment,
+                sets: updatedSets,
+              };
+            });
+
+            return {
+              ...sector,
+              equipments: updatedEquipments,
+            };
+          });
+
+          return {
+            ...area,
+            sectors: updatedSectors,
+          };
+        });
+
+        return {
+          ...prevLayout,
+          areas: updatedAreas,
+        };
+      });
+    }
+  }
+
   useEffect(() => {
     async function fetchData() {
       await GetAreas();
       await GetSectors();
       await GetEquipments();
       await GetSets();
+      await GetSubSets();
     }
     fetchData();
   }, []);
@@ -222,10 +296,13 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
         setOriginalEquipments,
         originalSets,
         setOriginalSets,
+        originalSubSets,
+        setOriginalSubSets,
         GetAreas,
         GetSectors,
         GetEquipments,
         GetSets,
+        GetSubSets,
       }}
     >
       {children}
