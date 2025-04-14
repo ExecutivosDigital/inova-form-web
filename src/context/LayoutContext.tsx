@@ -2,6 +2,7 @@
 
 import {
   AreaProps,
+  CipProps,
   EquipmentsProps,
   LayoutTypeProps,
   SectorProps,
@@ -34,11 +35,14 @@ interface LayoutContextProps {
   setOriginalSubSets: React.Dispatch<
     React.SetStateAction<SubSetProps[] | null>
   >;
+  originalCips: CipProps[] | null;
+  setOriginalCips: React.Dispatch<React.SetStateAction<CipProps[] | null>>;
   GetAreas: () => void;
   GetSectors: () => void;
   GetEquipments: () => void;
   GetSets: () => void;
   GetSubSets: () => void;
+  GetCips: () => void;
 }
 
 const LayoutContext = createContext<LayoutContextProps | undefined>(undefined);
@@ -64,6 +68,7 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
   const [originalSubSets, setOriginalSubSets] = useState<SubSetProps[] | null>(
     null,
   );
+  const [originalCips, setOriginalCips] = useState<CipProps[] | null>(null);
   const [cipCount, setCipCount] = useState(1);
 
   console.log("layoutData: ", layoutData);
@@ -201,7 +206,6 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
 
   async function GetSubSets() {
     const subSetsResponse = await GetAPI("/subset", true);
-    console.log("subSetsResponse", subSetsResponse);
     if (subSetsResponse.status === 200) {
       // Assume subSetsResponse.body.subSets is an array of SubSetProps.
       const fetchedSubSets: SubSetProps[] = subSetsResponse.body.subsets;
@@ -263,6 +267,69 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
     }
   }
 
+  async function GetCips() {
+    const cipsResponse = await GetAPI("/cip", true);
+    if (cipsResponse.status === 200) {
+      // Assume cipsResponse.body.cips is an array of CipProps.
+      const fetchedCips: CipProps[] = cipsResponse.body.cips;
+
+      // Optionally store the fetched CIPs in a separate state if needed.
+      // For example: setOriginalCips(fetchedCips);
+
+      // Update layoutData by assigning each CIP to its proper sub-set.
+      setLayoutData((prevLayout) => {
+        if (!prevLayout.areas) return prevLayout;
+
+        const updatedAreas = prevLayout.areas.map((area) => {
+          if (!area.sectors) return area;
+          const updatedSectors = area.sectors.map((sector) => {
+            if (!sector.equipments) return sector;
+            const updatedEquipments = sector.equipments.map((equipment) => {
+              if (!equipment.sets) return equipment;
+              const updatedSets = equipment.sets.map((set) => {
+                // For each set, update each sub-set's CIP array.
+                if (!set.subSets) return set;
+                const updatedSubSets = set.subSets.map((subSet) => {
+                  // For every sub-set, filter the fetched CIPs whose position starts
+                  // with the subSet's position + a dot.
+                  const subSetCips = fetchedCips.filter((cip) => {
+                    if (!cip.position || !subSet.position) return false;
+                    return cip.position.startsWith(subSet.position + ".");
+                  });
+                  return {
+                    ...subSet,
+                    cip: subSetCips.length > 0 ? subSetCips : null,
+                  };
+                });
+                return {
+                  ...set,
+                  subSets: updatedSubSets,
+                };
+              });
+              return {
+                ...equipment,
+                sets: updatedSets,
+              };
+            });
+            return {
+              ...sector,
+              equipments: updatedEquipments,
+            };
+          });
+          return {
+            ...area,
+            sectors: updatedSectors,
+          };
+        });
+
+        return {
+          ...prevLayout,
+          areas: updatedAreas,
+        };
+      });
+    }
+  }
+
   useEffect(() => {
     async function fetchData() {
       await GetAreas();
@@ -270,6 +337,7 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
       await GetEquipments();
       await GetSets();
       await GetSubSets();
+      await GetCips();
     }
     fetchData();
   }, []);
@@ -298,11 +366,14 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
         setOriginalSets,
         originalSubSets,
         setOriginalSubSets,
+        originalCips,
+        setOriginalCips,
         GetAreas,
         GetSectors,
         GetEquipments,
         GetSets,
         GetSubSets,
+        GetCips,
       }}
     >
       {children}
