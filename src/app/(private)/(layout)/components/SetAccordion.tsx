@@ -188,7 +188,7 @@ export function SetAccordion({
     } else {
       // Initialize with default equipment structure instead of strings
       setInputSetsValues(
-        Array(5).fill({
+        Array(3).fill({
           name: "",
           code: "",
           id: "",
