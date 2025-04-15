@@ -1,12 +1,12 @@
 "use client";
 import { Accordion } from "@/components/global/ui/accordion";
-import { AreaAccordion } from "./AreaAccordion";
-import { SectorAccordion } from "./SectorAccordion";
-import { EquipmentAccordion } from "./EquipmentAccordion";
-import { SetAccordion } from "./SetAccordion";
-import { SubSetAccordion } from "./SubSetAccordion";
 import { useLayoutContext } from "@/context/LayoutContext";
-import { CipAccordion } from "./CipAccordion";
+import { AreaAccordion } from "./Area/AreaAccordion";
+import { CipAccordion } from "./Cip/CipAccordion";
+import { EquipmentAccordion } from "./Equipment/EquipmentAccordion";
+import { SectorAccordion } from "./Sector/SectorAccordion";
+import { SetAccordion } from "./Set/SetAccordion";
+import { SubSetAccordion } from "./SubSet/SubSetAccordion";
 
 export function LayoutAccordion() {
   const { selectedLayoutStep, setSelectedLayoutStep } = useLayoutContext();
