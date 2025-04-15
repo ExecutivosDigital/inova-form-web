@@ -45,6 +45,7 @@ interface LayoutContextProps {
   GetSets: () => void;
   GetSubSets: () => void;
   GetCips: () => void;
+  GetAllData: () => void;
   isGettingData: boolean;
   setIsGettingData: React.Dispatch<React.SetStateAction<boolean>>;
 }
@@ -336,18 +337,19 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
     }
   }
 
+  async function GetAllData() {
+    setIsGettingData(true);
+    await GetAreas();
+    await GetSectors();
+    await GetEquipments();
+    await GetSets();
+    await GetSubSets();
+    await GetCips();
+    setIsGettingData(false);
+  }
+
   useEffect(() => {
-    async function fetchData() {
-      setIsGettingData(true);
-      await GetAreas();
-      await GetSectors();
-      await GetEquipments();
-      await GetSets();
-      await GetSubSets();
-      await GetCips();
-      setIsGettingData(false);
-    }
-    fetchData();
+    GetAllData();
   }, []);
   // useEffect(() => {
   //   setLayoutData({
@@ -384,6 +386,7 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
         GetSets,
         GetSubSets,
         GetCips,
+        GetAllData,
         isGettingData,
         setIsGettingData,
       }}
