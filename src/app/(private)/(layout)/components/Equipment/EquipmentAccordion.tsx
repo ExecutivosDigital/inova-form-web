@@ -1065,6 +1065,7 @@ export function EquipmentAccordion({
                 {layoutData.areas &&
                   layoutData.areas
                     .flatMap((area) => area.sectors || [])
+                    .sort((a, b) => a.position.localeCompare(b.position))
                     .filter((sector) =>
                       sector.name.toLowerCase().includes(query.toLowerCase()),
                     )
