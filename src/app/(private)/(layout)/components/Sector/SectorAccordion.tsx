@@ -46,7 +46,7 @@ export function SectorAccordion({
     originalSectors,
     isGettingData,
   } = useLayoutContext();
-  const { PostAPI } = useApiContext();
+  const { PostAPI, PutAPI, DeleteAPI } = useApiContext();
   const [currentAreaPage, setCurrentAreaPage] = useState(1);
   const [areasPages, setAreasPages] = useState<number>(1);
   const [sectorsArrayLength, setSectorsArrayLength] = useState(5);
@@ -57,7 +57,7 @@ export function SectorAccordion({
   const [sectorsPages, setSectorsPages] = useState<number>(1);
   const [currentSectorPage, setCurrentSectorPage] = useState(1);
   const [isAreaNameHovered, setIsAreaNameHovered] = useState(false);
-  const [isCreatingSectors, setIsCreatingSectors] = useState(false);
+  const [isModifyingSectors, setIsModifyingSectors] = useState(false);
   const [isSectorTemplateSheetOpen, setIsSectorTemplateSheetOpen] =
     useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -68,57 +68,67 @@ export function SectorAccordion({
     setSectorsPages(Math.ceil((sectorsArrayLength + 1) / 6));
   };
 
-  const handleSectorInputChange = (stateIndex: number, value: string) => {
+  const HandleInputChange = (stateIndex: number, value: string) => {
     if (!selectedArea) return;
 
-    // Compute the local sector number (1-indexed) and build a full position.
-    const sectorPosition = (stateIndex + 1).toString();
-    const fullPosition = `${selectedArea.position}.${sectorPosition}`;
+    const slot = (stateIndex + 1).toString();
+    const fullPosition = `${selectedArea.position}.${slot}`;
 
-    // Update the local input state.
+    // Sync the input‑field state
     setInputSectorValues((prev) => {
-      const updated = [...prev];
-      updated[stateIndex] = value;
-      return updated;
+      const next = [...prev];
+      next[stateIndex] = value;
+      return next;
     });
 
-    // Update layoutData for the selected area.
-    setLayoutData((prevLayout) => {
-      if (!prevLayout.areas) return prevLayout;
+    // Update layoutData, _early‑return_ if there were no areas
+    setLayoutData((prev) => {
+      if (!prev.areas) return prev;
 
-      const updatedAreas = prevLayout.areas.map((area) => {
-        if (area.id === selectedArea.id) {
-          let updatedSectors = area.sectors ? [...area.sectors] : [];
-          // Look for an existing sector with this full position.
-          const existingSectorIndex = updatedSectors.findIndex(
-            (sector) => sector.position === fullPosition,
-          );
-
-          if (value === "") {
-            // Remove sector if input is empty.
-            updatedSectors = updatedSectors.filter(
-              (sector) => sector.position !== fullPosition,
-            );
-          } else if (existingSectorIndex !== -1) {
-            // Update the sector name if it exists.
-            updatedSectors[existingSectorIndex].name = value;
-          } else {
-            // Add a new sector otherwise.
-            updatedSectors.push({
-              name: value,
-              id: v4(), // make sure v4 is imported from uuid
-              position: fullPosition,
-              equipments: null,
-            });
-          }
-          return {
-            ...area,
-            sectors: updatedSectors.length > 0 ? updatedSectors : null,
-          };
+      // Build a brand‑new AreaProps[] array
+      const updatedAreas: AreaProps[] = prev.areas.map((area) => {
+        if (area.id !== selectedArea.id) {
+          // untouched
+          return area;
         }
-        return area;
+
+        // clone this area’s sectors (or start with [])
+        const prevSectors = area.sectors ?? [];
+        let updatedSectors = [...prevSectors];
+
+        const idx = updatedSectors.findIndex(
+          (s) => s.position === fullPosition,
+        );
+
+        if (value === "") {
+          // deletion
+          updatedSectors = updatedSectors.filter(
+            (s) => s.position !== fullPosition,
+          );
+        } else if (idx !== -1) {
+          // replace with a fresh object
+          updatedSectors[idx] = {
+            ...updatedSectors[idx],
+            name: value,
+          };
+        } else {
+          // new sector
+          updatedSectors.push({
+            id: v4(),
+            name: value,
+            position: fullPosition,
+            equipments: null,
+          });
+        }
+
+        return {
+          ...area,
+          sectors: updatedSectors.length > 0 ? updatedSectors : null,
+        };
       });
-      return { ...prevLayout, areas: updatedAreas };
+
+      // now updatedAreas is always AreaProps[]
+      return { ...prev, areas: updatedAreas };
     });
   };
 
@@ -143,13 +153,13 @@ export function SectorAccordion({
     setCurrentSectorPage(1);
   };
 
-  async function HandleCreateSector(newSectors?: SectorProps[]) {
-    setIsCreatingSectors(true);
+  async function HandleCreateSector(modifiedSectors?: SectorProps[]) {
+    setIsModifyingSectors(true);
     const currentSectors =
       layoutData.areas?.flatMap((area) => area.sectors || []) || [];
-    const sectorsToSend = newSectors || currentSectors;
+    const sectorsToSend = modifiedSectors || currentSectors;
 
-    const newSectorResponse = await PostAPI(
+    const createdSectors = await PostAPI(
       "/sector/multi",
       {
         sectors: sectorsToSend.map((sector) => ({
@@ -162,16 +172,99 @@ export function SectorAccordion({
       },
       true,
     );
+    console.log("createdSectors", createdSectors);
 
-    if (newSectorResponse.status === 200) {
+    if (createdSectors.status === 200) {
       toast.success("Setores cadastrados com sucesso");
       await GetSectors(); // re-fetch areas from the API
       setSelectedLayoutStep(3);
-      return setIsCreatingSectors(false);
+    } else {
+      toast.error("Erro ao cadastrar Setores");
     }
-    toast.error("Erro ao cadastrar Setores");
-    return setIsCreatingSectors(false);
+    return setIsModifyingSectors(false);
   }
+
+  async function HandleUpdateSectors(modifiedSectors: SectorProps[]) {
+    if (modifiedSectors.length === 0) return;
+    setIsModifyingSectors(true);
+
+    const editedSectors = await PutAPI(
+      "/sector/multi",
+      {
+        sectors: modifiedSectors.map((sector) => ({
+          name: sector.name,
+          position: sector.position,
+          sectorId: sector.id,
+        })),
+      },
+      true,
+    );
+    console.log("editedSectors", editedSectors);
+    if (editedSectors.status === 200) {
+      toast.success("Setores atualizados com sucesso");
+      await GetSectors(); // re-fetch sectors from the API
+      setSelectedLayoutStep(2);
+    } else {
+      toast.error("Erro ao atualizar Setores");
+    }
+    return setIsModifyingSectors(false);
+  }
+
+  async function HandleDeleteSectors(modifiedSectors: SectorProps[]) {
+    if (modifiedSectors.length === 0) return;
+    setIsModifyingSectors(true);
+    const ids = modifiedSectors.map((sector) => sector.id).join(",");
+    const deletedSectors = await DeleteAPI(`/sector?sectors=${ids}`, true);
+    console.log("deletedSectors", deletedSectors);
+    if (deletedSectors.status === 200) {
+      toast.success("Setores deletados com sucesso");
+      await GetSectors();
+      setSelectedLayoutStep(3);
+    } else {
+      toast.error("Erro ao deletar as Setores");
+    }
+    return setIsModifyingSectors(false);
+  }
+
+  const HandleNextStep = () => {
+    // 1. Grab your flat list of current sectors
+    const currentSectors: SectorProps[] =
+      layoutData.areas?.flatMap((area) => area.sectors || []) || [];
+
+    // 2. Original baseline from context
+    const original = originalSectors || [];
+
+    // 3. Compute new / modified / deleted
+    const newSectors = currentSectors.filter(
+      (s) => !original.find((o) => o.position === s.position),
+    );
+
+    const modifiedSectors = currentSectors.filter((s) => {
+      const o = original.find((o) => o.position === s.position);
+      return o && o.name !== s.name;
+    });
+
+    const deletedSectors = original.filter(
+      (o) => !currentSectors.find((s) => s.position === o.position),
+    );
+
+    // 4. Kick off API calls
+    const promises: Promise<void>[] = [];
+    if (newSectors.length) promises.push(HandleCreateSector(newSectors));
+    if (modifiedSectors.length)
+      promises.push(HandleUpdateSectors(modifiedSectors));
+    if (deletedSectors.length)
+      promises.push(HandleDeleteSectors(deletedSectors));
+
+    // 5. Advance step once all are done (or immediately if nothing to do)
+    if (promises.length > 0) {
+      Promise.all(promises).then(() => {
+        setSelectedLayoutStep(3);
+      });
+    } else {
+      setSelectedLayoutStep(3);
+    }
+  };
 
   // Effect to merge persisted sectors from the selected area
   useEffect(() => {
@@ -179,10 +272,9 @@ export function SectorAccordion({
     setInputSectorValues((prev) => {
       const merged = [...prev];
       selectedArea.sectors?.forEach((sector) => {
-        // Sector position expected in the format "areaPosition.sectorNumber"
         const parts = sector.position.split(".");
         if (parts.length < 2) return;
-        const pos = parseInt(parts[1], 10) - 1; // convert to 0-index
+        const pos = parseInt(parts[1], 10) - 1;
         if (pos >= merged.length) {
           const numToAdd = pos - merged.length + 1;
           for (let i = 0; i < numToAdd; i++) {
@@ -195,13 +287,11 @@ export function SectorAccordion({
     });
   }, [selectedArea?.sectors]);
 
-  // Effect to update sectors pagination based on inputSectorValues.
   useEffect(() => {
     setSectorsArrayLength(inputSectorValues.length);
     setSectorsPages(Math.ceil(inputSectorValues.length / 6));
   }, [inputSectorValues]);
 
-  // (Optional) Update areas pages if needed when layoutData.areas changes.
   useEffect(() => {
     if (layoutData.areas) {
       setAreasPages(Math.ceil(layoutData.areas.length / 12));
@@ -266,33 +356,13 @@ export function SectorAccordion({
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
-                      const currentSectors =
-                        layoutData.areas?.flatMap(
-                          (area) => area.sectors || [],
-                        ) || [];
-                      let newSectors: SectorProps[] = [];
-                      if (originalSectors) {
-                        newSectors = currentSectors.filter(
-                          (sector) =>
-                            !originalSectors.find(
-                              (original) =>
-                                original.position === sector.position,
-                            ),
-                        );
-                      } else {
-                        newSectors = currentSectors;
-                      }
-                      if (newSectors.length > 0) {
-                        HandleCreateSector(newSectors);
-                      } else {
-                        setSelectedLayoutStep(3);
-                      }
+                      HandleNextStep();
                     }}
                     className={cn(
                       "bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4",
                     )}
                   >
-                    {isCreatingSectors ? (
+                    {isModifyingSectors ? (
                       <>
                         <span className="hidden md:block">Salvando...</span>
                         <Loader2 className="h-4 animate-spin md:h-8" />
@@ -399,6 +469,7 @@ export function SectorAccordion({
                           )}
                         >
                           <input
+                            autoFocus={stateIndex === 0}
                             className={cn(
                               "peer transparent absolute left-0 h-full w-[calc(100%-2rem)] px-2 text-xs placeholder:text-neutral-300 focus:outline-none md:px-4 md:text-sm",
                               inputSectorValues[stateIndex] ? "text-white" : "",
@@ -406,10 +477,7 @@ export function SectorAccordion({
                             placeholder="Nome do Setor"
                             value={inputSectorValues[stateIndex] || ""}
                             onChange={(e) =>
-                              handleSectorInputChange(
-                                stateIndex,
-                                e.target.value,
-                              )
+                              HandleInputChange(stateIndex, e.target.value)
                             }
                           />
                           <Image
@@ -456,7 +524,7 @@ export function SectorAccordion({
             ) : (
               layoutData.areas &&
               layoutData.areas
-                .sort((a, b) => Number(a.position) - Number(b.position))
+                .sort((a, b) => a.position.localeCompare(b.position))
                 .slice((currentAreaPage - 1) * 12, currentAreaPage * 12)
                 .map((item, index) => (
                   <div key={index} className="flex flex-col gap-2">

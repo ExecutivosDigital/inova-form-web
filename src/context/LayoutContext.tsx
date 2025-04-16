@@ -96,22 +96,34 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
 
   async function GetSectors() {
     const sectors = await GetAPI("/sector", true);
-    if (sectors.status === 200) {
-      // Update each area by adding a sectors property with the matching sectors
-      setLayoutData((prevLayout) => ({
-        ...prevLayout,
-        areas:
-          prevLayout.areas?.map((area) => ({
-            ...area,
-            sectors: sectors.body.sectors.filter(
-              (sector: SectorProps) =>
-                sector.position.split(".")[0] === area.position,
-            ),
-          })) || null,
+    if (sectors.status !== 200) return;
+
+    // 1. Clone the raw sectors so we never share references
+    const clonedSectors: SectorProps[] = sectors.body.sectors.map(
+      (s: SectorProps) => ({
+        ...s,
+      }),
+    );
+
+    // 2. Merge into layoutData.areas, cloning each area as well
+    setLayoutData((prev) => {
+      // if there were no areas yet, just return prev
+      if (!prev.areas) return prev;
+
+      const mergedAreas: AreaProps[] = prev.areas.map((area) => ({
+        ...area,
+        // filter and clone each sector for this area
+        sectors:
+          clonedSectors
+            .filter((sec) => sec.position.split(".")[0] === area.position)
+            .map((sec) => ({ ...sec })) || null,
       }));
-      // Also store the original sectors, if needed later
-      setOriginalSectors(sectors.body.sectors);
-    }
+
+      return { ...prev, areas: mergedAreas };
+    });
+
+    // 3. Store your baseline clone
+    setOriginalSectors(clonedSectors);
   }
 
   async function GetEquipments() {
