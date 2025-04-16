@@ -36,7 +36,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { v4 } from "uuid";
-import { CipTemplateSheet } from "./EquipmentTemplateSheet";
+import { CipTemplateSheet } from "./CipTemplateSheet";
 
 interface CipAccordionProps {
   selectedLayoutStep: number;

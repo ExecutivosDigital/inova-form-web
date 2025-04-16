@@ -29,7 +29,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { v4 } from "uuid";
-import { SetTemplateSheet } from "./SectorTemplateSheet";
+import { SetTemplateSheet } from "./SetTemplateSheet";
 
 interface SetAccordionProps {
   selectedLayoutStep: number;

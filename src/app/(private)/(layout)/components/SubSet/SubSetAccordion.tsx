@@ -34,7 +34,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { v4 } from "uuid";
-import { SubSetTemplateSheet } from "./SectorTemplateSheet";
+import { SubSetTemplateSheet } from "./SubSetTemplateSheet";
 
 interface SubSetAccordionProps {
   selectedLayoutStep: number;
