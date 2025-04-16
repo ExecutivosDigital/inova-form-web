@@ -64,7 +64,7 @@ export function AreaTemplateSheet({ open, onClose }: AreaTemplateSheetProps) {
 
     setIsCreatingAreas(true);
     const areasToSend = selectedTemplates.map((area) => ({
-      name: area.name,
+      name: `Área ${area.position}`,
       position: area.position,
       sectors: area.sectors,
       id: v4(),

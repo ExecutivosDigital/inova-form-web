@@ -35,14 +35,14 @@ export function AreaAccordion({
 }: AreaAccordionProps) {
   const { layoutData, setLayoutData, GetAreas, originalAreas, isGettingData } =
     useLayoutContext();
-  const { PostAPI } = useApiContext();
+  const { PostAPI, PutAPI, DeleteAPI } = useApiContext();
   const [areasArrayLength, setAreasArrayLength] = useState(5);
   const [inputValues, setInputValues] = useState<string[]>(
     Array(areasArrayLength).fill(""),
   );
   const [currentPage, setCurrentPage] = useState(1);
   const [areasPages, setAreasPages] = useState<number>(1);
-  const [isCreatingAreas, setIsCreatingAreas] = useState(false);
+  const [isModifyingAreas, setIsModifyingAreas] = useState(false);
   const [isAreaTemplateSheetOpen, setIsAreaTemplateSheetOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
@@ -55,7 +55,6 @@ export function AreaAccordion({
   };
 
   const handleInputChange = (index: number, value: string) => {
-    // Use index directly so that we don’t shift the state.
     setInputValues((prev) => {
       const updatedInputs = [...prev];
       updatedInputs[index] = value;
@@ -65,7 +64,7 @@ export function AreaAccordion({
     setLayoutData((prevLayout) => {
       let updatedAreas = [...(prevLayout.areas || [])];
 
-      // Use index+1 for display purposes only (area positions should be 1-indexed if desired)
+      // Using index+1 for display purposes; area positions should be 1-indexed if desired.
       const areaPosition = (index + 1).toString();
 
       const existingAreaIndex = updatedAreas.findIndex(
@@ -73,43 +72,40 @@ export function AreaAccordion({
       );
 
       if (value === "") {
-        // If input is empty, remove the area from layoutData
+        // Remove area if input is empty
         updatedAreas = updatedAreas.filter(
           (area) => area.position !== areaPosition,
         );
-
-        return {
-          ...prevLayout,
-          areas: updatedAreas.length > 0 ? updatedAreas : null,
-        };
-      }
-
-      if (existingAreaIndex !== -1) {
-        // If area already exists, update its name
-        updatedAreas[existingAreaIndex].name = value;
       } else {
-        // Otherwise, add a new area
-        updatedAreas.push({
-          name: value,
-          id: v4(), // Ensure you have v4 imported from uuid
-          position: areaPosition,
-          sectors: null,
-        });
+        if (existingAreaIndex !== -1) {
+          // Instead of mutating, create a new object
+          updatedAreas[existingAreaIndex] = {
+            ...updatedAreas[existingAreaIndex],
+            name: value,
+          };
+        } else {
+          // Add a new area
+          updatedAreas.push({
+            name: value,
+            id: v4(), // Ensure you have v4 imported from uuid
+            position: areaPosition,
+            sectors: null,
+          });
+        }
       }
 
       return { ...prevLayout, areas: updatedAreas };
     });
   };
 
-  async function HandleCreateArea(newAreas?: AreaProps[]) {
-    setIsCreatingAreas(true);
-    // Use newAreas if provided, otherwise fallback to layoutData.areas.
+  async function HandleCreateAreas(newAreas: AreaProps[]) {
+    setIsModifyingAreas(true);
     const areasToSend = newAreas || layoutData.areas;
 
-    const newAreaResponse = await PostAPI(
+    const createdAreas = await PostAPI(
       "/area/multi",
       {
-        areas: areasToSend?.map((area) => ({
+        areas: areasToSend.map((area) => ({
           name: area.name,
           position: area.position,
         })),
@@ -117,15 +113,97 @@ export function AreaAccordion({
       true,
     );
 
-    if (newAreaResponse.status === 200) {
+    if (createdAreas.status === 200) {
       toast.success("Áreas cadastradas com sucesso");
       await GetAreas(); // re-fetch areas from the API
       setSelectedLayoutStep(2);
-      return setIsCreatingAreas(false);
+    } else {
+      toast.error("Erro ao cadastrar Áreas");
     }
-    toast.error("Erro ao cadastrar Áreas");
-    return setIsCreatingAreas(false);
+    return setIsModifyingAreas(false);
   }
+
+  async function HandleUpdateAreas(modifiedAreas: AreaProps[]) {
+    if (modifiedAreas.length === 0) return;
+    setIsModifyingAreas(true);
+
+    const editedAreas = await PutAPI(
+      "/area/multi",
+      {
+        areas: modifiedAreas.map((area) => ({
+          name: area.name,
+          position: area.position,
+          areaId: area.id,
+        })),
+      },
+      true,
+    );
+    if (editedAreas.status === 200) {
+      toast.success("Áreas atualizadas com sucesso");
+      await GetAreas(); // re-fetch areas from the API
+      setSelectedLayoutStep(2);
+    } else {
+      toast.error("Erro ao atualizar Áreas");
+    }
+    return setIsModifyingAreas(false);
+  }
+
+  async function HandleDeleteAreas(deletedAreas: AreaProps[]) {
+    if (deletedAreas.length === 0) return;
+    setIsModifyingAreas(true);
+    const ids = deletedAreas.map((area) => area.id).join(",");
+    const response = await DeleteAPI(`/area?areas=${ids}`, true);
+
+    if (response.status === 200) {
+      toast.success("Áreas deletadas com sucesso");
+      await GetAreas();
+      setSelectedLayoutStep(2);
+    } else {
+      toast.error("Erro ao deletar as Áreas");
+    }
+    return setIsModifyingAreas(false);
+  }
+
+  const handleNextStep = () => {
+    const currentAreas = layoutData.areas || [];
+    const original = originalAreas || [];
+
+    // Areas that are new (in current but not original)
+    const newAreas = currentAreas.filter(
+      (area) => !original.find((orig) => orig.position === area.position),
+    );
+
+    // Areas that exist in both but with a changed name
+    const modifiedAreas = currentAreas.filter((updated) => {
+      const orig = original.find((orig) => orig.position === updated.position);
+      return orig && orig.name !== updated.name;
+    });
+
+    // Areas that were in the original but are no longer present in current
+    const deletedAreas = original.filter(
+      (orig) => !currentAreas.find((area) => area.position === orig.position),
+    );
+
+    const promises: Promise<void>[] = [];
+
+    if (newAreas.length > 0) {
+      promises.push(HandleCreateAreas(newAreas));
+    }
+    if (modifiedAreas.length > 0) {
+      promises.push(HandleUpdateAreas(modifiedAreas));
+    }
+    if (deletedAreas.length > 0) {
+      promises.push(HandleDeleteAreas(deletedAreas));
+    }
+
+    if (promises.length > 0) {
+      Promise.all(promises).then(() => {
+        setSelectedLayoutStep(2);
+      });
+    } else {
+      setSelectedLayoutStep(2);
+    }
+  };
 
   useEffect(() => {
     setInputValues((prev) => {
@@ -216,28 +294,7 @@ export function AreaAccordion({
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
-
-                      const currentAreas = layoutData.areas || [];
-                      let newAreas: AreaProps[] = [];
-
-                      if (originalAreas) {
-                        newAreas = currentAreas.filter(
-                          (area) =>
-                            !originalAreas.find(
-                              (original) => original.position === area.position,
-                            ),
-                        );
-                      } else {
-                        newAreas = currentAreas;
-                      }
-
-                      // If there are any new areas, send them to the API.
-                      if (newAreas.length > 0) {
-                        HandleCreateArea(newAreas);
-                      } else {
-                        // Otherwise, just move to the next step.
-                        setSelectedLayoutStep(2);
-                      }
+                      handleNextStep();
                     }}
                     className={cn(
                       "bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4",
@@ -247,7 +304,7 @@ export function AreaAccordion({
                         "pointer-events-none cursor-not-allowed opacity-50",
                     )}
                   >
-                    {isCreatingAreas ? (
+                    {isModifyingAreas || isModifyingAreas ? (
                       <>
                         <span className="hidden md:block">Salvando...</span>
                         <Loader2 className="h-4 animate-spin md:h-8" />
