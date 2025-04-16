@@ -456,6 +456,7 @@ export function SectorAccordion({
             ) : (
               layoutData.areas &&
               layoutData.areas
+                .sort((a, b) => Number(a.position) - Number(b.position))
                 .slice((currentAreaPage - 1) * 12, currentAreaPage * 12)
                 .map((item, index) => (
                   <div key={index} className="flex flex-col gap-2">
