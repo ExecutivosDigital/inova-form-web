@@ -54,7 +54,7 @@ export function AreaAccordion({
     );
   };
 
-  const handleInputChange = (index: number, value: string) => {
+  const HandleInputChange = (index: number, value: string) => {
     setInputValues((prev) => {
       const updatedInputs = [...prev];
       updatedInputs[index] = value;
@@ -98,9 +98,9 @@ export function AreaAccordion({
     });
   };
 
-  async function HandleCreateAreas(newAreas: AreaProps[]) {
+  async function HandleCreateAreas(modifiedAreas: AreaProps[]) {
     setIsModifyingAreas(true);
-    const areasToSend = newAreas || layoutData.areas;
+    const areasToSend = modifiedAreas || layoutData.areas;
 
     const createdAreas = await PostAPI(
       "/area/multi",
@@ -148,13 +148,13 @@ export function AreaAccordion({
     return setIsModifyingAreas(false);
   }
 
-  async function HandleDeleteAreas(deletedAreas: AreaProps[]) {
-    if (deletedAreas.length === 0) return;
+  async function HandleDeleteAreas(modifiedAreas: AreaProps[]) {
+    if (modifiedAreas.length === 0) return;
     setIsModifyingAreas(true);
-    const ids = deletedAreas.map((area) => area.id).join(",");
-    const response = await DeleteAPI(`/area?areas=${ids}`, true);
+    const ids = modifiedAreas.map((area) => area.id).join(",");
+    const deletedAreas = await DeleteAPI(`/area?areas=${ids}`, true);
 
-    if (response.status === 200) {
+    if (deletedAreas.status === 200) {
       toast.success("Áreas deletadas com sucesso");
       await GetAreas();
       setSelectedLayoutStep(2);
@@ -164,7 +164,7 @@ export function AreaAccordion({
     return setIsModifyingAreas(false);
   }
 
-  const handleNextStep = () => {
+  const HandleNextStep = () => {
     const currentAreas = layoutData.areas || [];
     const original = originalAreas || [];
 
@@ -207,23 +207,15 @@ export function AreaAccordion({
 
   useEffect(() => {
     setInputValues((prev) => {
-      // Make a copy of the previous array so we don’t modify it directly.
       const merged = [...prev];
-
-      // Go through each persisted area from the API.
       layoutData.areas?.forEach((area) => {
-        // Convert the 1-indexed position to a 0-indexed index.
         const pos = parseInt(area.position, 10) - 1;
-        // If the API area needs an index that is beyond the current length,
-        // extend the array without shrinking the already existing inputValues.
         if (pos >= merged.length) {
-          // Calculate how many elements we need to add.
           const numToAdd = pos - merged.length + 1;
           for (let i = 0; i < numToAdd; i++) {
             merged.push("");
           }
         }
-        // Update the corresponding slot with the area's name.
         merged[pos] = area.name;
       });
       return merged;
@@ -231,9 +223,8 @@ export function AreaAccordion({
   }, [layoutData.areas]);
 
   useEffect(() => {
-    // Update the length and pages state based on the current inputValues array.
     setAreasArrayLength(inputValues.length);
-    setAreasPages(Math.ceil(inputValues.length / 6)); // assuming 6 items per page
+    setAreasPages(Math.ceil(inputValues.length / 6));
   }, [inputValues]);
 
   return (
@@ -294,7 +285,7 @@ export function AreaAccordion({
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleNextStep();
+                      HandleNextStep();
                     }}
                     className={cn(
                       "bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4",
@@ -353,7 +344,7 @@ export function AreaAccordion({
                             placeholder="Nome da Área"
                             value={inputValues[stateIndex] || ""}
                             onChange={(e) =>
-                              handleInputChange(stateIndex, e.target.value)
+                              HandleInputChange(stateIndex, e.target.value)
                             }
                           />
                           <Image
