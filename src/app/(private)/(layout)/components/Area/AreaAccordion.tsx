@@ -130,24 +130,29 @@ export function AreaAccordion({
     const editedAreas = await PutAPI(
       "/area/multi",
       {
-        areas: modifiedAreas.map((area) => ({
-          name: area.name,
-          position: area.position,
-          areaId: area.id,
-        })),
+        areas: modifiedAreas.map((area) => {
+          // find the backend’s real ID by position
+          const orig = originalAreas?.find((o) => o.position === area.position);
+          return {
+            name: area.name,
+            position: area.position,
+            areaId: orig?.id ?? area.id, // ← use the real id if it existed
+          };
+        }),
       },
       true,
     );
+
     if (editedAreas.status === 200) {
       toast.success("Áreas atualizadas com sucesso");
-      await GetAreas(); // re-fetch areas from the API
+      await GetAreas();
       setSelectedLayoutStep(2);
     } else {
       toast.error("Erro ao atualizar Áreas");
     }
-    return setIsModifyingAreas(false);
-  }
 
+    setIsModifyingAreas(false);
+  }
   async function HandleDeleteAreas(modifiedAreas: AreaProps[]) {
     if (modifiedAreas.length === 0) return;
     setIsModifyingAreas(true);
