@@ -78,6 +78,8 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
   const [cipCount, setCipCount] = useState(1);
   const [isGettingData, setIsGettingData] = useState(true);
 
+  console.log("layoutData: ", layoutData);
+
   async function GetAreas() {
     const areas = await GetAPI("/area", true);
     if (areas.status === 200) {
@@ -127,50 +129,46 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
   }
 
   async function GetEquipments() {
-    const equipments = await GetAPI("/equipment", true);
-    if (equipments.status === 200) {
-      // Assume equipments.body.equipments is an array of EquipmentsProps.
-      const fetchedEquipments: EquipmentsProps[] = equipments.body.equipments;
+    const resp = await GetAPI("/equipment", true);
+    if (resp.status !== 200) return;
 
-      // Store all fetched equipments in originalEquipments.
-      setOriginalEquipments(fetchedEquipments);
+    // 1. Clone the raw equipments so you never share references
+    const clonedEquipments: EquipmentsProps[] = resp.body.equipments.map(
+      (e: EquipmentsProps) => ({ ...e }),
+    );
 
-      // Now update layoutData by assigning each equipment to its proper sector.
-      setLayoutData((prevLayout) => {
-        if (!prevLayout.areas) return prevLayout;
-        const updatedAreas = prevLayout.areas.map((area) => {
-          // If the area has no sectors, nothing to update.
-          if (!area.sectors) return area;
-          const updatedSectors = area.sectors.map((sector) => {
-            // For each sector, filter the equipments whose positions belong to this sector.
-            const sectorEquipments = fetchedEquipments.filter((equipment) => {
-              if (!equipment.position) return false;
-              // Split the equipment.position.
-              const parts = equipment.position.split(".");
-              // We expect at least three parts, e.g. "1", "1", "1" for "1.1.1"
-              if (parts.length < 3) return false;
-              // Reconstruct the sector part of the equipment's position.
-              const equipmentSectorPosition = `${parts[0]}.${parts[1]}`;
-              // Return true if it matches the current sector's position.
-              return equipmentSectorPosition === sector.position;
-            });
+    // 2. Store your baseline clone
+    setOriginalEquipments(clonedEquipments);
+
+    // 3. Merge into layoutData, cloning each area and sector as well
+    setLayoutData((prev) => {
+      // if there were no areas yet, just return prev
+      if (!prev.areas) return prev;
+
+      const mergedAreas: AreaProps[] = prev.areas.map((area) => ({
+        ...area,
+        // clone each sector (or leave null)
+        sectors:
+          area.sectors?.map((sector) => {
+            // filter & clone each equipment for this sector
+            const sectorEquipments = clonedEquipments
+              .filter((eq) => {
+                const parts = eq.position.split(".");
+                if (parts.length < 3) return false;
+                // sector positions are like "1.1"
+                return `${parts[0]}.${parts[1]}` === sector.position;
+              })
+              .map((eq) => ({ ...eq }));
+
             return {
               ...sector,
-              // Set the equipments only if there are any; otherwise, leave as null.
               equipments: sectorEquipments.length > 0 ? sectorEquipments : null,
             };
-          });
-          return {
-            ...area,
-            sectors: updatedSectors,
-          };
-        });
-        return {
-          ...prevLayout,
-          areas: updatedAreas,
-        };
-      });
-    }
+          }) ?? null,
+      }));
+
+      return { ...prev, areas: mergedAreas };
+    });
   }
 
   async function GetSets() {

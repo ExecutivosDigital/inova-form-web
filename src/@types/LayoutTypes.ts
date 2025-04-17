@@ -21,6 +21,12 @@ export interface SetProps {
   subSets: SubSetProps[] | null;
 }
 
+export interface EquipmentPhotoProps {
+  id?: string; // Optional because new photos won't have an id yet
+  url: string;
+  fullUrl: string;
+}
+
 export interface EquipmentsProps {
   name: string;
   tag: string;
@@ -29,12 +35,7 @@ export interface EquipmentsProps {
   model: string;
   year: string;
   description: string;
-  photos:
-    | {
-        url: string;
-        fullUrl: string;
-      }[]
-    | null;
+  photos: EquipmentPhotoProps[] | null;
   id: string;
   position: string;
   sets: SetProps[] | null;

@@ -1,5 +1,9 @@
 "use client";
-import { EquipmentsProps, SectorProps } from "@/@types/LayoutTypes";
+import {
+  EquipmentPhotoProps,
+  EquipmentsProps,
+  SectorProps,
+} from "@/@types/LayoutTypes";
 import { CustomPagination } from "@/components/global/CustomPagination";
 import { Skeleton } from "@/components/global/Skeleton";
 import {
@@ -29,17 +33,31 @@ import {
   ChevronLeft,
   Loader2,
   Search,
+  Trash2,
   Upload,
+  X,
 } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
+import "swiper/css";
+import { Swiper, SwiperSlide } from "swiper/react";
 import { v4 } from "uuid";
 import { EquipmentTemplateSheet } from "./EquipmentTemplateSheet";
 
 interface EquipmentAccordionProps {
   selectedLayoutStep: number;
   setSelectedLayoutStep: React.Dispatch<React.SetStateAction<number>>;
+}
+
+interface PhotoChangeEntryProps {
+  newPhotos: EquipmentPhotoProps[];
+  removedPhotoIds: string[];
+  originalPhotos: EquipmentPhotoProps[];
+}
+
+interface PhotoChangesProps {
+  [equipmentId: string]: PhotoChangeEntryProps;
 }
 
 export function EquipmentAccordion({
@@ -55,7 +73,7 @@ export function EquipmentAccordion({
     setQuery,
     isGettingData,
   } = useLayoutContext();
-  const { PostAPI } = useApiContext();
+  const { PostAPI, PutAPI, DeleteAPI } = useApiContext();
   const [selectedSector, setSelectedSector] = useState<SectorProps | null>(
     null,
   );
@@ -87,10 +105,44 @@ export function EquipmentAccordion({
   );
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
-  const [isCreatingEquipments, setIsCreatingEquipments] = useState(false);
+  const [isModifyingEquipments, setIsModifyingEquipments] = useState(false);
   const [isEquipmentTemplateSheetOpen, setIsEquipmentTemplateSheetOpen] =
     useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isPhotosOpen, setIsPhotosOpen] = useState(false);
+  const [photoChanges, setPhotoChanges] = useState<PhotoChangesProps>({});
+
+  const allEquipments =
+    layoutData.areas
+      ?.flatMap((area) => area.sectors || [])
+      .flatMap((sector) => sector.equipments || []) || [];
+  const hasAnyEquipment = allEquipments.length > 0;
+
+  const equipmentHasPhotos = (() => {
+    if (!selectedSector || selectedEquipment === null || !layoutData.areas)
+      return false;
+
+    // Look through each area to find the selected sector
+    for (const area of layoutData.areas) {
+      if (area.sectors) {
+        const matchingSector = area.sectors.find(
+          (sec) => sec.id === selectedSector.id,
+        );
+        if (matchingSector) {
+          // Compute the full equipment position.
+          // (We assume that selectedEquipment is an index and equipment positions were set as `${sector.position}.${index+1}`)
+          const fullposition = `${selectedSector.position}.${selectedEquipment + 1}`;
+          const equipment = matchingSector.equipments?.find(
+            (eq) => eq.position === fullposition,
+          );
+          return Boolean(
+            equipment && equipment.photos && equipment.photos.length > 0,
+          );
+        }
+      }
+    }
+    return false;
+  })();
 
   const handleAddEquipment = () => {
     setEquipmentsArrayLength((prevLength) => prevLength + 1);
@@ -251,6 +303,23 @@ export function EquipmentAccordion({
       const uploadedFullUrl = response.body.fullUrl;
       // Update layoutData only if an equipment is currently selected.
       if (selectedSector !== null && selectedEquipment !== null) {
+        const equipment = inputEquipmentValues[selectedEquipment];
+
+        // Track the new photo
+        setPhotoChanges((prev) => ({
+          ...prev,
+          [equipment.id]: {
+            ...(prev[equipment.id] || {
+              newPhotos: [],
+              removedPhotoIds: [],
+              originalPhotos: equipment.photos || [],
+            }),
+            newPhotos: [
+              ...(prev[equipment.id]?.newPhotos || []),
+              { url: uploadedUrl, fullUrl: uploadedFullUrl },
+            ],
+          },
+        }));
         // Compute the full position for the equipment, e.g. "1.2.1"
         const fullposition = `${selectedSector.position}.${selectedEquipment + 1}`;
 
@@ -322,35 +391,33 @@ export function EquipmentAccordion({
     }
   }
 
-  async function HandleCreateEquipment(newEquipments?: EquipmentsProps[]) {
-    setIsCreatingEquipments(true);
+  async function HandleCreateEquipments(
+    modifiedEquipments?: EquipmentsProps[],
+  ) {
+    setIsModifyingEquipments(true);
     // If no new equipments are provided, get them by flattening the equipments from all sectors in all areas.
     const equipmentsToSend =
-      newEquipments ||
+      modifiedEquipments ||
       layoutData.areas?.flatMap((area) =>
         area.sectors?.flatMap((sector) => sector.equipments),
       );
 
-    const newEquipmentResponse = await PostAPI(
+    console.log("equipmentsToSend", equipmentsToSend);
+
+    const newEquipments = await PostAPI(
       "/equipment/multi",
       {
         equipments: equipmentsToSend?.map((equipment) => {
-          // Check if the equipment has a valid position string.
           const parts = equipment?.position.split(".");
           let sectorId = "";
           if (parts && parts.length >= 2) {
-            // Join the first two parts to get the sector position (e.g., "1.1")
             const equipmentSectorPos = `${parts[0]}.${parts[1]}`;
-
-            // Flatten all sectors from all areas and find the matching sector.
             const sector = layoutData.areas
               ?.flatMap((area) => area.sectors || [])
               .find((sec) => sec.position === equipmentSectorPos);
-
-            // Get the sector's id, or leave it as an empty string if not found.
             sectorId = sector?.id as string;
           }
-
+          console.log("sectorId", sectorId);
           return {
             name: equipment?.name,
             tag: equipment?.tag,
@@ -367,15 +434,317 @@ export function EquipmentAccordion({
       },
       true,
     );
-    if (newEquipmentResponse.status === 200) {
+    console.log("newEquipments", newEquipments);
+    if (newEquipments.status === 200) {
       toast.success("Equipamentos cadastrados com sucesso");
-      await GetEquipments(); // re-fetch areas from the API
+      await GetEquipments();
       setSelectedLayoutStep(4);
-      return setIsCreatingEquipments(false);
+      return setIsModifyingEquipments(false);
     }
     toast.error("Erro ao cadastrar Equipamentos");
-    return setIsCreatingEquipments(false);
+    return setIsModifyingEquipments(false);
   }
+
+  async function HandleUpdateEquipments(modifiedEquipments: EquipmentsProps[]) {
+    if (modifiedEquipments.length === 0) return;
+    setIsModifyingEquipments(true);
+
+    const editedEquipments = await PutAPI(
+      "/equipment/multi",
+      {
+        equipments: modifiedEquipments.map((eq) => {
+          const changes = photoChanges[eq.id] || {
+            newPhotos: [],
+            removedPhotoIds: [],
+            originalPhotos: [],
+          };
+
+          return {
+            name: eq.name,
+            tag: eq.tag,
+            type: eq.type,
+            maker: eq.maker,
+            model: eq.model,
+            year: eq.year,
+            description: eq.description,
+            position: eq.position,
+            equipmentId: eq.id,
+            newPhotos: changes.newPhotos,
+            removedPhotos: changes.removedPhotoIds,
+          };
+        }),
+      },
+      true,
+    );
+    console.log("editedEquipments", editedEquipments);
+
+    if (editedEquipments.status === 200) {
+      // Clear photo changes after successful update
+      setPhotoChanges({});
+      toast.success("Equipamentos atualizados com sucesso");
+      await GetEquipments();
+      setSelectedLayoutStep(4);
+    } else {
+      toast.error("Erro ao atualizar Equipamentos");
+    }
+
+    setIsModifyingEquipments(false);
+  }
+
+  async function HandleDeleteEquipments(modifiedEquipments: EquipmentsProps[]) {
+    console.log("modifiedEquipments", modifiedEquipments);
+    if (modifiedEquipments.length === 0) return;
+    setIsModifyingEquipments(true);
+    const ids = modifiedEquipments.map((sector) => sector.id).join(",");
+    console.log("ids: ", ids);
+    const deletedEquipments = await DeleteAPI(
+      `/equipment?equipments=${ids}`,
+      true,
+    );
+    console.log("deletedEquipments", deletedEquipments);
+    if (deletedEquipments.status === 200) {
+      toast.success("Equipamentos deletados com sucesso");
+      await GetEquipments();
+      setSelectedLayoutStep(4);
+    } else {
+      toast.error("Erro ao deletar as Equipamentos");
+    }
+    return setIsModifyingEquipments(false);
+  }
+
+  const HandleNextStep = () => {
+    // 1. flatten everything
+    const currentEquipments: EquipmentsProps[] =
+      layoutData.areas
+        ?.flatMap((a) => a.sectors || [])
+        .flatMap((s) => s.equipments || []) || [];
+
+    // 2. your original list from context
+    const original = originalEquipments || [];
+
+    // 3a. NEW = has no matching id in original
+    const newEquipments = currentEquipments.filter(
+      (eq) => !original.find((o) => o.position === eq.position),
+    );
+
+    const modifiedEquipments = currentEquipments.filter((eq) => {
+      const o = original.find((o) => o.position === eq.position);
+
+      // Check if this equipment has any photo changes
+      const hasPhotoChanges =
+        eq.id &&
+        photoChanges[eq.id] &&
+        (photoChanges[eq.id].newPhotos.length > 0 ||
+          photoChanges[eq.id].removedPhotoIds.length > 0);
+
+      return (
+        o &&
+        (o.name !== eq.name ||
+          o.tag !== eq.tag ||
+          o.type !== eq.type ||
+          o.maker !== eq.maker ||
+          o.model !== eq.model ||
+          o.year !== eq.year ||
+          o.description !== eq.description ||
+          hasPhotoChanges) // Add photo changes to modification check
+      );
+    });
+
+    const deletedEquipments = original.filter(
+      (o) => !currentEquipments.find((eq) => eq.position === o.position),
+    );
+
+    console.log("newEquipments", newEquipments);
+    console.log("modifiedEquipments", modifiedEquipments);
+    console.log("deletedEquipments", deletedEquipments);
+
+    // 4. dispatch your three API calls exactly as before
+    const promises: Promise<void>[] = [];
+    if (newEquipments.length)
+      promises.push(HandleCreateEquipments(newEquipments));
+    if (modifiedEquipments.length)
+      promises.push(HandleUpdateEquipments(modifiedEquipments));
+    if (deletedEquipments.length)
+      promises.push(HandleDeleteEquipments(deletedEquipments));
+    // 5. step on
+    if (promises.length) {
+      Promise.all(promises).then(() => setSelectedLayoutStep(4));
+    } else {
+      setSelectedLayoutStep(4);
+    }
+  };
+  // Add this function to handle the local deletion
+  const handleDeleteCurrentEquipment = () => {
+    if (!selectedSector || selectedEquipment === null) return;
+
+    // Create a copy of the current equipment for deletion
+    const equipmentToDelete = inputEquipmentValues[selectedEquipment];
+
+    // Update layoutData to remove the equipment
+    setLayoutData((prevLayout) => {
+      if (!prevLayout.areas) return prevLayout;
+
+      const updatedAreas = prevLayout.areas.map((area) => {
+        if (!area.sectors) return area;
+
+        const updatedSectors = area.sectors.map((sector) => {
+          if (sector.id !== selectedSector.id) return sector;
+
+          return {
+            ...sector,
+            equipments:
+              sector.equipments?.filter(
+                (eq) => eq.position !== equipmentToDelete.position,
+              ) || null,
+          };
+        });
+
+        return {
+          ...area,
+          sectors: updatedSectors,
+        };
+      });
+
+      return { ...prevLayout, areas: updatedAreas };
+    });
+
+    // Update input values
+    setInputEquipmentValues((prev) => {
+      const updated = [...prev];
+      updated[selectedEquipment] = {
+        name: "",
+        tag: "",
+        type: "",
+        maker: "",
+        model: "",
+        year: "",
+        description: "",
+        photos: null,
+        id: "",
+        position: "",
+        sets: null,
+      };
+      return updated;
+    });
+
+    // If the equipment has an ID (meaning it exists in the backend), delete it
+    // if (equipmentToDelete.id) {
+    //   HandleDeleteEquipments([equipmentToDelete]);
+    // }
+
+    // Return to equipment list view
+    setSelectedEquipment(null);
+    toast.success("Equipamento excluído com sucesso");
+  };
+
+  const getCurrentEquipmentPhotos = () => {
+    if (!selectedSector || selectedEquipment === null || !layoutData.areas)
+      return [];
+
+    const fullposition = `${selectedSector.position}.${selectedEquipment + 1}`;
+
+    // Find the current equipment in layoutData
+    const equipment = layoutData.areas
+      .flatMap((area) => area.sectors || [])
+      .find((sector) => sector.id === selectedSector.id)
+      ?.equipments?.find((eq) => eq.position === fullposition);
+
+    return equipment?.photos || [];
+  };
+
+  const handleDeletePhoto = (photoIndex: number) => {
+    if (!selectedSector || selectedEquipment === null) return;
+
+    const equipment = inputEquipmentValues[selectedEquipment];
+    const photo = equipment.photos?.[photoIndex];
+
+    if (photo?.id && equipment.id) {
+      setPhotoChanges((prev: PhotoChangesProps) => {
+        // Get existing changes or create new entry
+        const existingChanges = prev[equipment.id] || {
+          newPhotos: [],
+          removedPhotoIds: [],
+          originalPhotos: equipment.photos || [],
+        };
+
+        // Create new changes object with type safety
+        const updatedChanges: PhotoChangeEntryProps = {
+          ...existingChanges,
+          removedPhotoIds: [
+            ...existingChanges.removedPhotoIds,
+            photo.id as string,
+          ],
+        };
+
+        // Return new state with type safety
+        return {
+          ...prev,
+          [equipment.id]: updatedChanges,
+        };
+      });
+    }
+
+    // Continue with your existing delete logic...
+    setLayoutData((prevLayout) => {
+      if (!prevLayout.areas) return prevLayout;
+
+      const updatedAreas = prevLayout.areas.map((area) => {
+        if (!area.sectors) return area;
+
+        const updatedSectors = area.sectors.map((sector) => {
+          if (sector.id !== selectedSector.id) return sector;
+
+          if (!sector.equipments) return sector;
+
+          const updatedEquipments = sector.equipments.map((eq) => {
+            if (eq.position !== equipment.position) return eq;
+
+            const updatedPhotos =
+              eq.photos?.filter((_, index) => index !== photoIndex) || null;
+
+            return {
+              ...eq,
+              photos: updatedPhotos,
+            };
+          });
+
+          return {
+            ...sector,
+            equipments: updatedEquipments,
+          };
+        });
+
+        return {
+          ...area,
+          sectors: updatedSectors,
+        };
+      });
+
+      return { ...prevLayout, areas: updatedAreas };
+    });
+
+    // If no photos left, close the photos view
+    if (getCurrentEquipmentPhotos().length <= 1) {
+      setIsPhotosOpen(false);
+    }
+  };
+
+  const handleSelectEquipment = (index: number) => {
+    setSelectedEquipment(index);
+    const equipment = inputEquipmentValues[index];
+
+    // Initialize photo changes for this equipment if not already present
+    if (equipment.id && !photoChanges[equipment.id]) {
+      setPhotoChanges((prev) => ({
+        ...prev,
+        [equipment.id]: {
+          newPhotos: [],
+          removedPhotoIds: [],
+          originalPhotos: equipment.photos || [],
+        },
+      }));
+    }
+  };
 
   useEffect(() => {
     if (!selectedSector) return;
@@ -446,31 +815,46 @@ export function EquipmentAccordion({
     );
   }, [layoutData.areas, query]);
 
-  const equipmentHasPhotos = (() => {
-    if (!selectedSector || selectedEquipment === null || !layoutData.areas)
-      return false;
-
-    // Look through each area to find the selected sector
-    for (const area of layoutData.areas) {
-      if (area.sectors) {
-        const matchingSector = area.sectors.find(
-          (sec) => sec.id === selectedSector.id,
-        );
-        if (matchingSector) {
-          // Compute the full equipment position.
-          // (We assume that selectedEquipment is an index and equipment positions were set as `${sector.position}.${index+1}`)
-          const fullposition = `${selectedSector.position}.${selectedEquipment + 1}`;
-          const equipment = matchingSector.equipments?.find(
-            (eq) => eq.position === fullposition,
-          );
-          return Boolean(
-            equipment && equipment.photos && equipment.photos.length > 0,
-          );
+  useEffect(() => {
+    if (!selectedSector) return;
+    setInputEquipmentValues((prev) => {
+      const merged = [...prev];
+      selectedSector.equipments?.forEach((equipment) => {
+        const parts = equipment.position.split(".");
+        if (parts.length < 3) return;
+        const pos = parseInt(parts[2], 10) - 1;
+        if (pos >= merged.length) {
+          const numToAdd = pos - merged.length + 1;
+          for (let i = 0; i < numToAdd; i++) {
+            merged.push({
+              name: "",
+              tag: "",
+              type: "",
+              maker: "",
+              model: "",
+              year: "",
+              description: "",
+              photos: null,
+              id: "",
+              position: "",
+              sets: null,
+            });
+          }
         }
-      }
-    }
-    return false;
-  })();
+        merged[pos] = equipment;
+      });
+      return merged;
+    });
+  }, [selectedSector?.equipments]);
+
+  // Sync selectedSector when layoutData changes (e.g. after template additions)
+  useEffect(() => {
+    if (!selectedSector) return;
+    const updated = layoutData.areas
+      ?.flatMap((area) => area.sectors || [])
+      .find((sec) => sec.id === selectedSector.id);
+    if (updated) setSelectedSector(updated);
+  }, [layoutData.areas]);
 
   return (
     <>
@@ -496,8 +880,8 @@ export function EquipmentAccordion({
                   </span>
                 </div>
               </div>
-              {selectedLayoutStep === 3 && selectedEquipment === null && (
-                <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4">
+                {selectedLayoutStep === 3 && selectedSector !== null ? (
                   <DropdownMenu
                     open={isDropdownOpen}
                     onOpenChange={setIsDropdownOpen}
@@ -529,45 +913,19 @@ export function EquipmentAccordion({
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                ) : selectedLayoutStep === 3 && !selectedSector ? (
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
-                      const currentEquipments =
-                        layoutData.areas?.flatMap(
-                          (area) =>
-                            area.sectors?.flatMap(
-                              (sector) => sector.equipments || [],
-                            ) || [],
-                        ) || [];
-                      let newEquipments: EquipmentsProps[] = [];
-                      if (originalEquipments) {
-                        newEquipments = currentEquipments.filter(
-                          (equipment) =>
-                            !originalEquipments.find(
-                              (original) =>
-                                original.position === equipment.position,
-                            ),
-                        );
-                      } else {
-                        newEquipments = currentEquipments;
-                      }
-                      if (newEquipments.length > 0) {
-                        HandleCreateEquipment(newEquipments);
-                      } else {
-                        setSelectedLayoutStep(4);
-                      }
+                      HandleNextStep();
                     }}
                     className={cn(
                       "bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4",
-                      // layoutData &&
-                      //   layoutData.areas &&
-                      //   layoutData.areas.find((area) =>
-                      //     area.sectors?.find((sector) => !sector.equipments),
-                      //   ) &&
-                      //   "pointer-events-none cursor-not-allowed opacity-50",
+                      !hasAnyEquipment &&
+                        "pointer-events-none cursor-not-allowed opacity-50",
                     )}
                   >
-                    {isCreatingEquipments ? (
+                    {isModifyingEquipments ? (
                       <>
                         <span className="hidden md:block">Salvando...</span>
                         <Loader2 className="h-4 animate-spin md:h-8" />
@@ -579,8 +937,10 @@ export function EquipmentAccordion({
                       </>
                     )}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <></>
+                )}
+              </div>
             </div>
           )}
         </AccordionTrigger>
@@ -659,39 +1019,104 @@ export function EquipmentAccordion({
                       </PopoverContent>
                     </Popover>
                   </div>
-                  <button
-                    disabled={isUploadingFile}
-                    className={cn(
-                      "text-primary relative flex h-10 items-center gap-2 rounded-lg border border-neutral-200 px-2 py-2 text-xs font-semibold transition duration-300 md:h-12 md:px-4",
-                      equipmentHasPhotos &&
-                        "bg-primary border-transparent text-white",
+                  <div className="flex items-center gap-2">
+                    {equipmentHasPhotos && (
+                      <button
+                        onClick={() => setIsPhotosOpen(!isPhotosOpen)}
+                        className={cn(
+                          "text-primary relative flex h-10 items-center gap-2 rounded-lg border border-neutral-200 px-2 py-2 text-xs font-semibold transition duration-300 md:h-12 md:px-4",
+                          isPhotosOpen &&
+                            "bg-primary border-transparent text-white",
+                        )}
+                      >
+                        Ver Fotos
+                      </button>
                     )}
-                  >
-                    <input
-                      ref={fileInputRef}
-                      className="absolute top-0 left-0 h-full w-full cursor-pointer bg-transparent opacity-0"
-                      type="file"
-                      multiple
-                      onChange={(e) => {
-                        const file = e.target.files;
-                        if (!file) return;
-                        for (let i = 0; i < file.length; i++) {
-                          handleUpload(file[i]);
-                        }
-                      }}
-                    />
-                    {isUploadingFile ? (
-                      <>
-                        <span>Carregando...</span>
-                        <Loader2 className="w-4 animate-spin" />
-                      </>
-                    ) : equipmentHasPhotos ? (
-                      "Fotos Inseridas"
-                    ) : (
-                      "Fotos do Equipamento"
-                    )}
-                  </button>
+                    <button
+                      disabled={isUploadingFile}
+                      className={cn(
+                        "text-primary relative flex h-10 items-center gap-2 rounded-lg border border-neutral-200 px-2 py-2 text-xs font-semibold transition duration-300 md:h-12 md:px-4",
+                        equipmentHasPhotos &&
+                          "bg-primary border-transparent text-white",
+                      )}
+                    >
+                      <input
+                        ref={fileInputRef}
+                        className="absolute top-0 left-0 h-full w-full cursor-pointer bg-transparent opacity-0"
+                        type="file"
+                        multiple
+                        onChange={(e) => {
+                          const file = e.target.files;
+                          if (!file) return;
+                          for (let i = 0; i < file.length; i++) {
+                            handleUpload(file[i]);
+                          }
+                        }}
+                      />
+                      {isUploadingFile ? (
+                        <>
+                          <span>Carregando...</span>
+                          <Loader2 className="w-4 animate-spin" />
+                        </>
+                      ) : equipmentHasPhotos ? (
+                        "Fotos Inseridas"
+                      ) : (
+                        "Adicionar Fotos"
+                      )}
+                    </button>
+                  </div>
                 </div>
+                {isPhotosOpen && (
+                  <div className="col-span-3 p-4">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-primary text-sm md:text-base">
+                          Fotos do Equipamento
+                        </span>
+                        <button
+                          onClick={() => setIsPhotosOpen(false)}
+                          className="text-primary hover:bg-primary/10 rounded-full p-2 transition-colors"
+                        >
+                          <X className="h-4 w-4 md:h-6 md:w-6" />
+                        </button>
+                      </div>
+                      <Swiper
+                        slidesPerView="auto"
+                        spaceBetween={10}
+                        className="w-full"
+                      >
+                        {getCurrentEquipmentPhotos().map((photo, index) => (
+                          <SwiperSlide key={index} className="!w-auto">
+                            <div className="group relative">
+                              <Image
+                                src={photo.fullUrl}
+                                alt={`Equipment photo ${index + 1}`}
+                                width={200}
+                                height={200}
+                                className="h-28 w-auto rounded-lg object-contain"
+                              />
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (
+                                    confirm(
+                                      "Tem certeza que deseja excluir essa foto?",
+                                    )
+                                  ) {
+                                    handleDeletePhoto(index);
+                                  }
+                                }}
+                                className="absolute top-2 right-2 rounded-full bg-red-500 p-1 text-white"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </SwiperSlide>
+                        ))}
+                      </Swiper>
+                    </div>
+                  </div>
+                )}
                 <div className="col-span-2 grid grid-cols-2 gap-4">
                   <div className="flex flex-col">
                     <span className="text-primary text-xs md:text-sm">TAG</span>
@@ -871,6 +1296,12 @@ export function EquipmentAccordion({
                   </div>
                   <div className="flex h-10 items-center justify-end gap-4 md:h-12">
                     <button
+                      onClick={() => handleDeleteCurrentEquipment()}
+                      className="h-10 w-full rounded-xl bg-red-500 p-2 text-sm text-white shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] md:w-2/5"
+                    >
+                      Excluir
+                    </button>
+                    <button
                       onClick={() => {
                         if (
                           isEquipmentFullyFilled(
@@ -965,7 +1396,9 @@ export function EquipmentAccordion({
                           Equipamento {stateIndex + 1}
                         </span>
                         <label
-                          onClick={() => setSelectedEquipment(stateIndex)}
+                          onClick={() => {
+                            handleSelectEquipment(stateIndex);
+                          }}
                           className={cn(
                             "relative flex h-10 items-center justify-end rounded-2xl px-2 md:h-12 md:px-4",
                             isEquipmentFullyFilled(
