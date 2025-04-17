@@ -24,7 +24,14 @@ import { useApiContext } from "@/context/ApiContext";
 import { useLayoutContext } from "@/context/LayoutContext";
 import { cn } from "@/lib/utils";
 import { DropdownMenuArrow } from "@radix-ui/react-dropdown-menu";
-import { ArrowRight, ChevronLeft, Loader2, Search, Upload } from "lucide-react";
+import {
+  ArrowRight,
+  ChevronLeft,
+  Loader2,
+  Search,
+  Trash,
+  Upload,
+} from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
@@ -49,7 +56,7 @@ export function SetAccordion({
     setQuery,
     isGettingData,
   } = useLayoutContext();
-  const { PostAPI } = useApiContext();
+  const { PostAPI, PutAPI, DeleteAPI } = useApiContext();
   const [selectedSector, setSelectedSector] = useState<SectorProps | null>(
     null,
   );
@@ -58,25 +65,33 @@ export function SetAccordion({
   const [currentSectorPage, setCurrentSectorPage] = useState(1);
   const [currentEquipmentPage, setCurrentEquipmentPage] = useState(1);
   const [setsArrayLength, setSetsArrayLength] = useState(3);
-  const [inputSetsValues, setInputSetsValues] = useState<SetProps[]>(
-    Array(setsArrayLength).fill({
+  const [inputSetsValues, setInputSetsValues] = useState<SetProps[]>(() =>
+    Array.from({ length: setsArrayLength }, () => ({
       name: "",
       code: "",
       id: "",
       position: "",
       subSets: null,
-    }),
+    })),
   );
   const [isSectorNameHovered, setIsSectorNameHovered] = useState(false);
   const [isEquipmentNameHovered, setIsEquipmentNameHovered] = useState(false);
   const [selectedEquipment, setSelectedEquipment] =
     useState<EquipmentsProps | null>(null);
-  const [isCreatingSets, setIsCreatingSets] = useState(false);
+  const [isModifyingSets, setIsModifyingSets] = useState(false);
   const [isSetTemplateSheetOpen, setIsSetTemplateSheetOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  const isSetFullyFilled = (set: SetProps) => {
-    return set.name && set.code;
+  const allSets =
+    layoutData.areas
+      ?.flatMap((area) => area.sectors || [])
+      .flatMap(
+        (sector) => sector.equipments?.flatMap((eq) => eq.sets || []) || [],
+      ) || [];
+  const hasAnySets = allSets.length > 0;
+
+  const isSetFullyFilled = (set: SetProps | undefined) => {
+    return set?.name && set?.code;
   };
 
   const handleAddSet = () => {
@@ -100,88 +115,153 @@ export function SetAccordion({
   ) => {
     if (!selectedSector || !selectedEquipment) return;
 
-    const fullposition = `${selectedEquipment.position}.${index + 1}`;
-
     setInputSetsValues((prev) => {
       const updatedInputs = [...prev];
+      // Create new set if it doesn't exist
+      if (!updatedInputs[index]) {
+        updatedInputs[index] = {
+          name: "",
+          code: "",
+          id: "",
+          position: "",
+          subSets: null,
+        };
+      }
+
+      // Update the specific field
       updatedInputs[index] = {
         ...updatedInputs[index],
         [field]: value,
       };
-      return updatedInputs;
+
+      // Recalculate positions for all sets
+      return updatedInputs.map((set, idx) => ({
+        ...set,
+        position: `${selectedEquipment.position}.${idx + 1}`,
+      }));
     });
 
+    // Update layout data
     setLayoutData((prevLayout) => {
-      if (!prevLayout.areas) return prevLayout; // Ensure areas exist
+      if (!prevLayout.areas) return prevLayout;
 
       const updatedAreas = prevLayout.areas.map((area) => {
-        if (!area.sectors) return area; // Skip areas without sectors
+        if (!area.sectors) return area;
 
         const updatedSectors = area.sectors.map((sector) => {
-          if (sector.position !== selectedSector.position) return sector; // Skip unrelated sectors
+          if (sector.position !== selectedSector.position) return sector;
 
-          // Ensure equipments exist in sector, default to an empty array if null
-          const updatedEquipments = sector.equipments
-            ? [...sector.equipments]
-            : [];
+          const updatedEquipments = sector.equipments?.map((equipment) => {
+            if (equipment.position !== selectedEquipment.position)
+              return equipment;
 
-          const existingEquipmentIndex = updatedEquipments.findIndex(
-            (equipment) => equipment.position === selectedEquipment.position,
-          );
+            // Get current sets and update them
+            const currentSets = equipment.sets || [];
+            const updatedSets = [...currentSets];
 
-          if (existingEquipmentIndex !== -1) {
-            // Find the correct equipment and modify its sets array
-            const equipment = updatedEquipments[existingEquipmentIndex];
-
-            // Ensure sets exist or create an empty array
-            const updatedSets = equipment.sets ? [...equipment.sets] : [];
-
-            // Find the existing set by position
-            const existingSetIndex = updatedSets.findIndex(
-              (set) => set.position === fullposition,
-            );
-
-            if (existingSetIndex !== -1) {
-              // If the set exists, update the specified field
-              updatedSets[existingSetIndex] = {
-                ...updatedSets[existingSetIndex],
-                [field]: value,
-              };
-            } else {
-              // If the set doesn't exist, add a new one
-              updatedSets.push({
+            // Update or add the set at the correct index
+            if (!updatedSets[index]) {
+              updatedSets[index] = {
                 name: "",
                 code: "",
-                id: v4(), // Unique ID
-                position: fullposition,
+                id: v4(),
+                position: `${selectedEquipment.position}.${index + 1}`,
                 subSets: null,
-                [field]: value,
-              });
+              };
             }
 
-            // Assign updated sets back to equipment
-            updatedEquipments[existingEquipmentIndex] = {
-              ...equipment,
-              sets: updatedSets, // Update sets array in this equipment
+            updatedSets[index] = {
+              ...updatedSets[index],
+              [field]: value,
+              position: `${selectedEquipment.position}.${index + 1}`,
             };
-          }
+
+            // Recalculate all positions
+            const finalSets = updatedSets.map((set, idx) => ({
+              ...set,
+              position: `${selectedEquipment.position}.${idx + 1}`,
+            }));
+
+            return {
+              ...equipment,
+              sets: finalSets,
+            };
+          });
 
           return {
             ...sector,
-            equipments: updatedEquipments.length > 0 ? updatedEquipments : null, // Ensure correct type
+            equipments: updatedEquipments || null,
           };
         });
 
         return {
           ...area,
-          sectors: updatedSectors.length > 0 ? updatedSectors : [], // Ensure correct type
+          sectors: updatedSectors,
         };
       });
 
       return {
         ...prevLayout,
-        areas: updatedAreas.length > 0 ? updatedAreas : [],
-      }; // Ensure correct type
+        areas: updatedAreas,
+      };
+    });
+  };
+
+  const handleRemoveSet = (indexToRemove: number) => {
+    if (!selectedSector || !selectedEquipment) return;
+
+    setInputSetsValues((prev) => {
+      const updatedSets = prev.filter((_, idx) => idx !== indexToRemove);
+      // Recalculate positions for remaining sets
+      return updatedSets.map((set, idx) => ({
+        ...set,
+        position: `${selectedEquipment.position}.${idx + 1}`,
+      }));
+    });
+
+    setLayoutData((prevLayout) => {
+      if (!prevLayout.areas) return prevLayout;
+
+      const updatedAreas = prevLayout.areas.map((area) => {
+        if (!area.sectors) return area;
+
+        const updatedSectors = area.sectors.map((sector) => {
+          if (sector.position !== selectedSector.position) return sector;
+
+          const updatedEquipments = sector.equipments?.map((equipment) => {
+            if (equipment.position !== selectedEquipment.position)
+              return equipment;
+
+            const updatedSets =
+              equipment.sets?.filter((_, idx) => idx !== indexToRemove) || [];
+            // Recalculate positions for remaining sets
+            const finalSets = updatedSets.map((set, idx) => ({
+              ...set,
+              position: `${selectedEquipment.position}.${idx + 1}`,
+            }));
+
+            return {
+              ...equipment,
+              sets: finalSets.length > 0 ? finalSets : null,
+            };
+          });
+
+          return {
+            ...sector,
+            equipments: updatedEquipments || null,
+          };
+        });
+
+        return {
+          ...area,
+          sectors: updatedSectors,
+        };
+      });
+
+      return {
+        ...prevLayout,
+        areas: updatedAreas,
+      };
     });
   };
 
@@ -218,7 +298,7 @@ export function SetAccordion({
   };
 
   async function HandleCreateSets(newSets?: SetProps[]) {
-    setIsCreatingSets(true);
+    setIsModifyingSets(true);
     // If no new equipments are provided, get them by flattening the equipments from all sectors in all areas.
     const setsToSend =
       newSets ||
@@ -266,11 +346,118 @@ export function SetAccordion({
       toast.success("Conjuntos cadastrados com sucesso");
       await GetSets(); // re-fetch areas from the API
       setSelectedLayoutStep(5);
-      return setIsCreatingSets(false);
+      return setIsModifyingSets(false);
     }
     toast.error("Erro ao cadastrar Conjuntos");
-    return setIsCreatingSets(false);
+    return setIsModifyingSets(false);
   }
+
+  async function HandleUpdateSets(modifiedSets: SetProps[]) {
+    if (modifiedSets.length === 0) return;
+    setIsModifyingSets(true);
+
+    const editedSets = await PutAPI(
+      "/set/multi",
+      {
+        sets: modifiedSets.map((set) => {
+          const orig = originalSets?.find((o) => o.position === set.position);
+          return {
+            name: set.name,
+            position: set.position,
+            code: set.code,
+            setId: orig?.id ?? set.id,
+          };
+        }),
+      },
+      true,
+    );
+
+    if (editedSets.status === 200) {
+      toast.success("Conjuntos atualizados com sucesso");
+      await GetSets();
+      setSelectedLayoutStep(5);
+    } else {
+      toast.error("Erro ao atualizar Conjuntos");
+    }
+
+    setIsModifyingSets(false);
+  }
+
+  async function HandleDeleteSets(modifiedSets: SetProps[]) {
+    if (modifiedSets.length === 0) return;
+    setIsModifyingSets(true);
+    const ids = modifiedSets.map((sector) => sector.id).join(",");
+    const deletedSets = await DeleteAPI(`/set?sets=${ids}`, true);
+    if (deletedSets.status === 200) {
+      toast.success("Conjuntos deletados com sucesso");
+      await GetSets();
+      setSelectedLayoutStep(5);
+    } else {
+      toast.error("Erro ao deletar as Conjuntos");
+    }
+    return setIsModifyingSets(false);
+  }
+
+  const HandleNextStep = () => {
+    // 1. Grab your flat list of current sets, filtering out empty sets
+    const currentSets: SetProps[] =
+      layoutData.areas?.flatMap(
+        (area) =>
+          area.sectors?.flatMap(
+            (sector) =>
+              sector.equipments?.flatMap(
+                (eq) =>
+                  // Only include sets that have both name and code
+                  eq.sets?.filter((set) => set.name && set.code) || [],
+              ) || [],
+          ) || [],
+      ) || [];
+
+    // 2. Original baseline from context
+    const original = originalSets || [];
+
+    // 3. Compute new / modified / deleted
+    const newSets = currentSets.filter(
+      (s) => !original.find((o) => o.position === s.position),
+    );
+
+    const modifiedSets = currentSets.filter((s) => {
+      const o = original.find((o) => o.position === s.position);
+      return o && (o.name !== s.name || o.code !== s.code);
+    });
+
+    // Consider a set as deleted if it exists in original but either:
+    // - Doesn't exist in current sets
+    // - Or exists but has empty name or code
+    const deletedSets = original.filter((o) => {
+      const currentSet = layoutData.areas?.flatMap(
+        (area) =>
+          area.sectors?.flatMap(
+            (sector) =>
+              sector.equipments?.flatMap((eq) =>
+                eq.sets?.find((set) => set.position === o.position),
+              ) || [],
+          ) || [],
+      )[0];
+
+      return !currentSet || (!currentSet.name && !currentSet.code);
+    });
+
+    // 4. Kick off API calls
+    const promises: Promise<void>[] = [];
+    if (newSets.length) promises.push(HandleCreateSets(newSets));
+    if (modifiedSets.length) promises.push(HandleUpdateSets(modifiedSets));
+    if (deletedSets.length) promises.push(HandleDeleteSets(deletedSets));
+
+    // 5. Advance step once all are done (or immediately if nothing to do)
+    if (promises.length > 0) {
+      Promise.all(promises).then(() => {
+        setSelectedLayoutStep(5);
+      });
+    } else {
+      setSelectedLayoutStep(5);
+    }
+  };
 
   useEffect(() => {
     if (!layoutData.areas) {
@@ -320,6 +507,31 @@ export function SetAccordion({
         : 1,
     );
   }, [layoutData.areas, query]);
+
+  useEffect(() => {
+    // Always show at least 3 fields, or more if there are more values
+    const minFields = 3;
+    const valueLength = inputSetsValues.length;
+    setSetsArrayLength(Math.max(minFields, valueLength));
+  }, [inputSetsValues]);
+
+  useEffect(() => {
+    if (!selectedEquipment) return;
+
+    // Sync with any updates to the selected equipment's sets
+    const updatedEquipment = layoutData.areas
+      ?.flatMap((area) => area.sectors || [])
+      ?.flatMap((sector) => sector.equipments || [])
+      ?.find((eq) => eq.id === selectedEquipment.id);
+
+    if (updatedEquipment) {
+      setSelectedEquipment(updatedEquipment);
+      if (updatedEquipment.sets) {
+        setInputSetsValues(updatedEquipment.sets);
+        setSetsArrayLength(updatedEquipment.sets.length);
+      }
+    }
+  }, [layoutData.areas]);
 
   return (
     <>
@@ -379,46 +591,15 @@ export function SetAccordion({
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
-                      const currentSets =
-                        layoutData.areas?.flatMap(
-                          (area) =>
-                            area.sectors?.flatMap(
-                              (sector) =>
-                                sector.equipments?.flatMap(
-                                  (eq) => eq.sets || [],
-                                ) || [],
-                            ) || [],
-                        ) || [];
-                      let newSets: SetProps[] = [];
-                      if (originalSets) {
-                        newSets = currentSets.filter(
-                          (set) =>
-                            !originalSets.find(
-                              (original) => original.position === set.position,
-                            ),
-                        );
-                      } else {
-                        newSets = currentSets;
-                      }
-                      if (newSets.length > 0) {
-                        HandleCreateSets(newSets);
-                      } else {
-                        setSelectedLayoutStep(5);
-                      }
+                      HandleNextStep();
                     }}
                     className={cn(
                       "bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4",
-                      // layoutData &&
-                      //   layoutData.areas &&
-                      //   layoutData.areas.find((area) =>
-                      //     area.sectors?.find((sector) =>
-                      //       sector.equipments?.find((eq) => !eq.sets),
-                      //     ),
-                      //   ) &&
-                      //   "pointer-events-none cursor-not-allowed opacity-50",
+                      !hasAnySets &&
+                        "pointer-events-none cursor-not-allowed opacity-50",
                     )}
                   >
-                    {isCreatingSets ? (
+                    {isModifyingSets ? (
                       <>
                         <span className="hidden md:block">Salvando...</span>
                         <Loader2 className="h-4 animate-spin md:h-8" />
@@ -589,7 +770,7 @@ export function SetAccordion({
                               onChange={(e) =>
                                 handleInputChange(index, "name", e.target.value)
                               }
-                              value={inputSetsValues[index].name}
+                              value={inputSetsValues[index]?.name || ""}
                             />
                           </div>
                           <div className="flex w-full flex-col">
@@ -603,9 +784,20 @@ export function SetAccordion({
                               onChange={(e) =>
                                 handleInputChange(index, "code", e.target.value)
                               }
-                              value={inputSetsValues[index].code}
+                              value={inputSetsValues[index]?.code || ""}
                             />
                           </div>
+                          <button
+                            onClick={() => handleRemoveSet(index)}
+                            className={cn(
+                              "bg-primary pointer-events-none cursor-not-allowed rounded-md p-2 text-white opacity-50",
+                              inputSetsValues[index]?.name &&
+                                inputSetsValues[index]?.code &&
+                                "pointer-events-auto cursor-auto opacity-100",
+                            )}
+                          >
+                            <Trash />
+                          </button>
                         </div>
                       ))}
                     </ScrollArea>

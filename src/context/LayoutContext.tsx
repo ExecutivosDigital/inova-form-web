@@ -82,18 +82,20 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
 
   async function GetAreas() {
     const areas = await GetAPI("/area", true);
-    if (areas.status === 200) {
-      // Set layoutData directly
-      setLayoutData({
-        areas: areas.body.areas,
-      });
+    if (areas.status !== 200) return;
 
-      // Clone each area to prevent shared object references.
-      const clonedAreas = areas.body.areas.map((area: AreaProps) => ({
-        ...area,
-      }));
-      setOriginalAreas(clonedAreas);
-    }
+    // 1. Clone the raw areas first
+    const clonedAreas: AreaProps[] = areas.body.areas.map((a: AreaProps) => ({
+      ...a,
+    }));
+
+    // 2. Set layoutData
+    setLayoutData({
+      areas: clonedAreas.map((area) => ({ ...area })),
+    });
+
+    // 3. Store baseline clone
+    setOriginalAreas(clonedAreas);
   }
 
   async function GetSectors() {
@@ -172,57 +174,52 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
   }
 
   async function GetSets() {
-    const setsResponse = await GetAPI("/set", true);
-    if (setsResponse.status === 200) {
-      // Assume setsResponse.body.sets is an array of SetProps.
-      const fetchedSets: SetProps[] = setsResponse.body.sets;
+    const resp = await GetAPI("/set", true);
+    if (resp.status !== 200) return;
 
-      // Store the fetched sets separately if needed.
-      setOriginalSets(fetchedSets);
+    // 1. Clone the raw sets so we never share references
+    const clonedSets: SetProps[] = resp.body.sets.map((s: SetProps) => ({
+      ...s,
+    }));
 
-      // Update the layoutData state by assigning each set to its proper equipment.
-      setLayoutData((prevLayout) => {
-        if (!prevLayout.areas) return prevLayout;
+    // 2. Store your baseline clone
+    setOriginalSets(clonedSets);
 
-        const updatedAreas = prevLayout.areas.map((area) => {
-          if (!area.sectors) return area;
+    // 3. Merge into layoutData, cloning each level of hierarchy
+    setLayoutData((prev) => {
+      // if there were no areas yet, just return prev
+      if (!prev.areas) return prev;
 
-          const updatedSectors = area.sectors.map((sector) => {
-            if (!sector.equipments) return sector;
+      const mergedAreas: AreaProps[] = prev.areas.map((area) => ({
+        ...area,
+        sectors:
+          area.sectors?.map((sector) => ({
+            ...sector,
+            equipments:
+              sector.equipments?.map((equipment) => {
+                // filter & clone each set for this equipment
+                const equipmentSets = clonedSets
+                  .filter((set) => {
+                    const parts = set.position.split(".");
+                    if (parts.length < 4) return false;
+                    // equipment positions are like "1.1.1"
+                    return (
+                      `${parts[0]}.${parts[1]}.${parts[2]}` ===
+                      equipment.position
+                    );
+                  })
+                  .map((set) => ({ ...set }));
 
-            const updatedEquipments = sector.equipments.map((equipment) => {
-              // For each equipment, filter the sets that belong to it.
-              // We assume that if an equipment's position is "A.B.C", then
-              // a set with a position like "A.B.C.X" belongs to that equipment.
-              const equipmentSets = fetchedSets.filter((set) => {
-                if (!set.position || !equipment.position) return false;
-                return set.position.startsWith(equipment.position + ".");
-              });
+                return {
+                  ...equipment,
+                  sets: equipmentSets.length > 0 ? equipmentSets : null,
+                };
+              }) ?? null,
+          })) ?? null,
+      }));
 
-              return {
-                ...equipment,
-                sets: equipmentSets.length > 0 ? equipmentSets : null,
-              };
-            });
-
-            return {
-              ...sector,
-              equipments: updatedEquipments,
-            };
-          });
-
-          return {
-            ...area,
-            sectors: updatedSectors,
-          };
-        });
-
-        return {
-          ...prevLayout,
-          areas: updatedAreas,
-        };
-      });
-    }
+      return { ...prev, areas: mergedAreas };
+    });
   }
 
   async function GetSubSets() {
