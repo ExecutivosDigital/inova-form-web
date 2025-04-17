@@ -402,8 +402,6 @@ export function EquipmentAccordion({
         area.sectors?.flatMap((sector) => sector.equipments),
       );
 
-    console.log("equipmentsToSend", equipmentsToSend);
-
     const newEquipments = await PostAPI(
       "/equipment/multi",
       {
@@ -417,7 +415,6 @@ export function EquipmentAccordion({
               .find((sec) => sec.position === equipmentSectorPos);
             sectorId = sector?.id as string;
           }
-          console.log("sectorId", sectorId);
           return {
             name: equipment?.name,
             tag: equipment?.tag,
@@ -434,7 +431,6 @@ export function EquipmentAccordion({
       },
       true,
     );
-    console.log("newEquipments", newEquipments);
     if (newEquipments.status === 200) {
       toast.success("Equipamentos cadastrados com sucesso");
       await GetEquipments();
@@ -476,7 +472,6 @@ export function EquipmentAccordion({
       },
       true,
     );
-    console.log("editedEquipments", editedEquipments);
 
     if (editedEquipments.status === 200) {
       // Clear photo changes after successful update
@@ -492,16 +487,13 @@ export function EquipmentAccordion({
   }
 
   async function HandleDeleteEquipments(modifiedEquipments: EquipmentsProps[]) {
-    console.log("modifiedEquipments", modifiedEquipments);
     if (modifiedEquipments.length === 0) return;
     setIsModifyingEquipments(true);
     const ids = modifiedEquipments.map((sector) => sector.id).join(",");
-    console.log("ids: ", ids);
     const deletedEquipments = await DeleteAPI(
       `/equipment?equipments=${ids}`,
       true,
     );
-    console.log("deletedEquipments", deletedEquipments);
     if (deletedEquipments.status === 200) {
       toast.success("Equipamentos deletados com sucesso");
       await GetEquipments();
@@ -553,10 +545,6 @@ export function EquipmentAccordion({
     const deletedEquipments = original.filter(
       (o) => !currentEquipments.find((eq) => eq.position === o.position),
     );
-
-    console.log("newEquipments", newEquipments);
-    console.log("modifiedEquipments", modifiedEquipments);
-    console.log("deletedEquipments", deletedEquipments);
 
     // 4. dispatch your three API calls exactly as before
     const promises: Promise<void>[] = [];
