@@ -861,8 +861,23 @@ export function SubSetAccordion({
                 {layoutData.areas
                   ?.flatMap((area) => area.sectors || [])
                   .flatMap((sector) => sector.equipments || [])
+
                   .find((eq) => eq.position === selectedEquipment.position)
-                  ?.sets?.filter((set) =>
+                  ?.sets?.sort((a, b) => {
+                    const aParts = a.position.split(".").map(Number);
+                    const bParts = b.position.split(".").map(Number);
+                    for (
+                      let i = 0;
+                      i < Math.max(aParts.length, bParts.length);
+                      i++
+                    ) {
+                      if ((aParts[i] || 0) !== (bParts[i] || 0)) {
+                        return (aParts[i] || 0) - (bParts[i] || 0);
+                      }
+                    }
+                    return 0;
+                  })
+                  .filter((set) =>
                     set.name.toLowerCase().includes(query.toLowerCase()),
                   )
                   .slice((currentSetPage - 1) * 6, currentSetPage * 6)
@@ -949,6 +964,7 @@ export function SubSetAccordion({
                   layoutData.areas
                     .flatMap((area) => area.sectors || [])
                     .flatMap((sector) => sector.equipments || [])
+                    .sort((a, b) => a.position.localeCompare(b.position))
                     .filter((eq) =>
                       eq.name.toLowerCase().includes(query.toLowerCase()),
                     )
