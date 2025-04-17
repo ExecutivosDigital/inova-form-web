@@ -62,6 +62,9 @@ export function SectorAccordion({
     useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
+  const hasAnySector =
+    (layoutData.areas?.flatMap((a) => a.sectors || []).length ?? 0) > 0;
+
   const handleAddSector = () => {
     setSectorsArrayLength((prevLength) => prevLength + 1);
     setInputSectorValues((prev) => [...prev, ""]);
@@ -172,7 +175,6 @@ export function SectorAccordion({
       },
       true,
     );
-    console.log("createdSectors", createdSectors);
 
     if (createdSectors.status === 200) {
       toast.success("Setores cadastrados com sucesso");
@@ -191,23 +193,29 @@ export function SectorAccordion({
     const editedSectors = await PutAPI(
       "/sector/multi",
       {
-        sectors: modifiedSectors.map((sector) => ({
-          name: sector.name,
-          position: sector.position,
-          sectorId: sector.id,
-        })),
+        sectors: modifiedSectors.map((sector) => {
+          const orig = originalSectors?.find(
+            (o) => o.position === sector.position,
+          );
+          return {
+            name: sector.name,
+            position: sector.position,
+            sectorId: orig?.id ?? sector.id,
+          };
+        }),
       },
       true,
     );
-    console.log("editedSectors", editedSectors);
+
     if (editedSectors.status === 200) {
       toast.success("Setores atualizados com sucesso");
-      await GetSectors(); // re-fetch sectors from the API
-      setSelectedLayoutStep(2);
+      await GetSectors();
+      setSelectedLayoutStep(3);
     } else {
       toast.error("Erro ao atualizar Setores");
     }
-    return setIsModifyingSectors(false);
+
+    setIsModifyingSectors(false);
   }
 
   async function HandleDeleteSectors(modifiedSectors: SectorProps[]) {
@@ -215,7 +223,6 @@ export function SectorAccordion({
     setIsModifyingSectors(true);
     const ids = modifiedSectors.map((sector) => sector.id).join(",");
     const deletedSectors = await DeleteAPI(`/sector?sectors=${ids}`, true);
-    console.log("deletedSectors", deletedSectors);
     if (deletedSectors.status === 200) {
       toast.success("Setores deletados com sucesso");
       await GetSectors();
@@ -288,6 +295,14 @@ export function SectorAccordion({
   }, [selectedArea?.sectors]);
 
   useEffect(() => {
+    if (!selectedArea) return;
+    const updated = layoutData.areas?.find((a) => a.id === selectedArea.id);
+    if (updated) {
+      setSelectedArea(updated);
+    }
+  }, [layoutData.areas]);
+
+  useEffect(() => {
     setSectorsArrayLength(inputSectorValues.length);
     setSectorsPages(Math.ceil(inputSectorValues.length / 6));
   }, [inputSectorValues]);
@@ -320,8 +335,8 @@ export function SectorAccordion({
                   </span>
                 </div>
               </div>
-              {selectedLayoutStep === 2 && !selectedArea && (
-                <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4">
+                {selectedLayoutStep === 2 && selectedArea ? (
                   <DropdownMenu
                     open={isDropdownOpen}
                     onOpenChange={setIsDropdownOpen}
@@ -353,6 +368,7 @@ export function SectorAccordion({
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                ) : selectedLayoutStep === 2 && !selectedArea ? (
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
@@ -360,6 +376,8 @@ export function SectorAccordion({
                     }}
                     className={cn(
                       "bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4",
+                      !hasAnySector &&
+                        "pointer-events-none cursor-not-allowed opacity-50",
                     )}
                   >
                     {isModifyingSectors ? (
@@ -374,8 +392,10 @@ export function SectorAccordion({
                       </>
                     )}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <></>
+                )}
+              </div>
             </div>
           )}
         </AccordionTrigger>
@@ -607,10 +627,11 @@ export function SectorAccordion({
           )}
         </AccordionContent>
       </AccordionItem>
-      {isSectorTemplateSheetOpen && (
+      {isSectorTemplateSheetOpen && selectedArea && (
         <SectorTemplateSheet
           open={isSectorTemplateSheetOpen}
           onClose={() => setIsSectorTemplateSheetOpen(false)}
+          selectedArea={selectedArea}
         />
       )}
     </>
