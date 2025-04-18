@@ -223,66 +223,56 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
   }
 
   async function GetSubSets() {
-    const subSetsResponse = await GetAPI("/subset", true);
-    if (subSetsResponse.status === 200) {
-      // Assume subSetsResponse.body.subSets is an array of SubSetProps.
-      const fetchedSubSets: SubSetProps[] = subSetsResponse.body.subsets;
+    const resp = await GetAPI("/subset", true);
+    if (resp.status !== 200) return;
 
-      // Optionally store the fetched subsets separately.
-      setOriginalSubSets(fetchedSubSets);
+    // 1. Clone the raw subsets so we never share references
+    const clonedSubSets: SubSetProps[] = resp.body.subsets.map(
+      (s: SubSetProps) => ({
+        ...s,
+      }),
+    );
 
-      // Update layoutData by assigning each subset to its proper set.
-      setLayoutData((prevLayout) => {
-        if (!prevLayout.areas) return prevLayout;
+    // 2. Store your baseline clone
+    setOriginalSubSets(clonedSubSets);
 
-        const updatedAreas = prevLayout.areas.map((area) => {
-          if (!area.sectors) return area;
+    // 3. Merge into layoutData, cloning each level of hierarchy
+    setLayoutData((prev) => {
+      // if there were no areas yet, just return prev
+      if (!prev.areas) return prev;
 
-          const updatedSectors = area.sectors.map((sector) => {
-            if (!sector.equipments) return sector;
-
-            const updatedEquipments = sector.equipments.map((equipment) => {
-              if (!equipment.sets) return equipment;
-
-              const updatedSets = equipment.sets.map((set) => {
-                // For each set, filter the subsets that belong to it.
-                // We assume that if a set's position is "A.B.C.D", then
-                // a subset with a position like "A.B.C.D.X" belongs to that set.
-                const setSubSets = fetchedSubSets.filter((subSet) => {
-                  if (!subSet.position || !set.position) return false;
-                  return subSet.position.startsWith(set.position + ".");
-                });
-
-                return {
-                  ...set,
-                  subSets: setSubSets.length > 0 ? setSubSets : null,
-                };
-              });
-
-              return {
+      const mergedAreas: AreaProps[] = prev.areas.map((area) => ({
+        ...area,
+        sectors:
+          area.sectors?.map((sector) => ({
+            ...sector,
+            equipments:
+              sector.equipments?.map((equipment) => ({
                 ...equipment,
-                sets: updatedSets,
-              };
-            });
+                sets:
+                  equipment.sets?.map((set) => {
+                    // filter & clone each subset for this set
+                    const setSubSets = clonedSubSets
+                      .filter((subset) => {
+                        const parts = subset.position.split(".");
+                        if (parts.length < 5) return false; // subsets should have at least 5 parts (1.1.1.1.1)
+                        // set positions are like "1.1.1.1"
+                        const setPosition = set.position;
+                        return subset.position.startsWith(setPosition + ".");
+                      })
+                      .map((subset) => ({ ...subset }));
 
-            return {
-              ...sector,
-              equipments: updatedEquipments,
-            };
-          });
+                    return {
+                      ...set,
+                      subSets: setSubSets.length > 0 ? setSubSets : null,
+                    };
+                  }) ?? null,
+              })) ?? null,
+          })) ?? null,
+      }));
 
-          return {
-            ...area,
-            sectors: updatedSectors,
-          };
-        });
-
-        return {
-          ...prevLayout,
-          areas: updatedAreas,
-        };
-      });
-    }
+      return { ...prev, areas: mergedAreas };
+    });
   }
 
   async function GetCips() {

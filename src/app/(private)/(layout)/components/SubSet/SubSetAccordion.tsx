@@ -27,9 +27,16 @@ import {
 import { ScrollArea } from "@/components/global/ui/scroll-area";
 import { useApiContext } from "@/context/ApiContext";
 import { useLayoutContext } from "@/context/LayoutContext";
-import { cn } from "@/lib/utils";
+import { cn, sortByPosition } from "@/lib/utils";
 import { DropdownMenuArrow } from "@radix-ui/react-dropdown-menu";
-import { ArrowRight, ChevronLeft, Loader2, Search, Upload } from "lucide-react";
+import {
+  ArrowRight,
+  ChevronLeft,
+  Loader2,
+  Search,
+  Trash,
+  Upload,
+} from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
@@ -54,7 +61,7 @@ export function SubSetAccordion({
     setQuery,
     isGettingData,
   } = useLayoutContext();
-  const { PostAPI } = useApiContext();
+  const { PostAPI, PutAPI, DeleteAPI } = useApiContext();
   const [selectedSector, setSelectedSector] = useState<SectorProps | null>(
     null,
   );
@@ -70,18 +77,29 @@ export function SubSetAccordion({
   const [isSetNameHovered, setIsSetNameHovered] = useState(false);
   const [subSetsArrayLength, setSubSetsArrayLength] = useState(3);
   const [inputSubSetsValues, setInputSubSetsValues] = useState<SubSetProps[]>(
-    Array(subSetsArrayLength).fill({
+    Array.from({ length: subSetsArrayLength }, () => ({
       name: "",
       code: "",
       id: "",
       position: "",
       cip: null,
-    }),
+    })),
   );
-  const [isCreatingSubSets, setIsCreatingSubSets] = useState(false);
+  const [isModifyingSubSets, setIsModifyingSubSets] = useState(false);
   const [isSubSetTemplateSheetOpen, setIsSubSetTemplateSheetOpen] =
     useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  const allSubSets =
+    layoutData.areas
+      ?.flatMap((area) => area.sectors || [])
+      .flatMap(
+        (sector) =>
+          sector.equipments?.flatMap(
+            (eq) => eq.sets?.flatMap((set) => set.subSets || []) || [],
+          ) || [],
+      ) || [];
+  const hasAnySubSets = allSubSets.length > 0;
 
   const handleSelectSet = (set: SetProps) => {
     setSelectedSet(set);
@@ -90,8 +108,11 @@ export function SubSetAccordion({
     setSelectedLayoutStep(6);
 
     if (set.subSets && set.subSets.length > 0) {
-      // Copy the existing subsets
-      const updatedSubSetValues = set.subSets.map((subSet) => ({ ...subSet }));
+      // Copy and sort the existing subsets by position
+      const updatedSubSetValues = [...set.subSets]
+        .sort(sortByPosition)
+        .map((subSet) => ({ ...subSet }));
+
       setInputSubSetsValues(updatedSubSetValues);
       setSubSetsArrayLength(set.subSets.length);
     } else {
@@ -120,12 +141,31 @@ export function SubSetAccordion({
     const fullposition = `${selectedSet.position}.${index + 1}`;
 
     setInputSubSetsValues((prev) => {
+      // Create a new array with proper length
       const updatedInputs = [...prev];
+
+      // Ensure the object at this index exists
+      if (!updatedInputs[index]) {
+        updatedInputs[index] = {
+          name: "",
+          code: "",
+          id: "",
+          position: fullposition,
+          cip: null,
+        };
+      }
+
+      // Update the field
       updatedInputs[index] = {
         ...updatedInputs[index],
         [field]: value,
       };
-      return updatedInputs;
+
+      // Recalculate all positions to ensure they're sequential
+      return updatedInputs.map((subSet, idx) => ({
+        ...subSet,
+        position: `${selectedSet.position}.${idx + 1}`,
+      }));
     });
 
     setLayoutData((prevLayout) => {
@@ -220,29 +260,80 @@ export function SubSetAccordion({
     });
   };
 
-  const isSubSetFullyFilled = (subSet: SubSetProps) => {
-    return subSet.name && subSet.code;
+  const isSubSetFullyFilled = (subSet: SubSetProps | undefined) => {
+    return !!subSet?.name && !!subSet?.code;
   };
 
   const handleAddSubSet = () => {
-    setSubSetsArrayLength((prevLength) => prevLength + 1);
-    setInputSubSetsValues((prev) => [
-      ...prev,
-      {
-        name: "",
-        code: "",
-        id: "",
-        position: "",
-        cip: null,
-      },
-    ]);
+    setInputSubSetsValues((prev) => {
+      const updated = [
+        ...prev,
+        { name: "", code: "", id: "", position: "", cip: null },
+      ];
+      // Recalculate all positions
+      return updated.map((subSet, idx) => ({
+        ...subSet,
+        position: `${selectedSet?.position}.${idx + 1}`,
+      }));
+    });
+    setSubSetsArrayLength((prev) => prev + 1);
   };
 
-  async function HandleCreateSubSets(newSubSets?: SubSetProps[]) {
-    setIsCreatingSubSets(true);
+  const handleRemoveSubSet = (index: number) => {
+    if (!selectedSet) return;
+
+    // Get the subset being removed
+    const subsetToRemove = inputSubSetsValues[index];
+
+    setInputSubSetsValues((prev) => {
+      const filtered = prev.filter((_, idx) => idx !== index);
+      // Recalculate positions
+      return filtered.map((subSet, idx) => ({
+        ...subSet,
+        position: `${selectedSet.position}.${idx + 1}`,
+      }));
+    });
+
+    // Update layout data
+    setLayoutData((prevLayout) => {
+      const updatedAreas =
+        prevLayout.areas?.map((area) => ({
+          ...area,
+          sectors:
+            area.sectors?.map((sector) => ({
+              ...sector,
+              equipments:
+                sector.equipments?.map((equipment) => ({
+                  ...equipment,
+                  sets:
+                    equipment.sets?.map((set) => {
+                      if (set.id !== selectedSet.id) return set;
+                      return {
+                        ...set,
+                        subSets:
+                          set.subSets?.filter(
+                            (subset) => subset.id !== subsetToRemove.id,
+                          ) || null,
+                      };
+                    }) || null,
+                })) || null,
+            })) || null,
+        })) || [];
+
+      return {
+        ...prevLayout,
+        areas: updatedAreas,
+      };
+    });
+
+    setSubSetsArrayLength((prev) => Math.max(3, prev - 1));
+  };
+
+  async function HandleCreateSubSets(modifiedSubSets?: SubSetProps[]) {
+    setIsModifyingSubSets(true);
     // If no new equipments are provided, get them by flattening the equipments from all sectors in all areas.
     const subSetsToSend =
-      newSubSets ||
+      modifiedSubSets ||
       layoutData.areas?.flatMap((area) =>
         area.sectors?.flatMap((sector) =>
           sector.equipments?.flatMap((eq) =>
@@ -251,7 +342,7 @@ export function SubSetAccordion({
         ),
       );
 
-    const newSubSetResponse = await PostAPI(
+    const newSubSets = await PostAPI(
       "/subset/multi",
       {
         subsets: subSetsToSend?.map((subset) => {
@@ -287,16 +378,124 @@ export function SubSetAccordion({
       },
       true,
     );
-
-    if (newSubSetResponse.status === 200) {
+    console.log("newSubSets", newSubSets);
+    if (newSubSets.status === 200) {
       toast.success("Subconjuntos cadastrados com sucesso");
       await GetSubSets(); // re-fetch areas from the API
       setSelectedLayoutStep(6);
-      return setIsCreatingSubSets(false);
+      return setIsModifyingSubSets(false);
     }
     toast.error("Erro ao cadastrar Subconjuntos");
-    return setIsCreatingSubSets(false);
+    return setIsModifyingSubSets(false);
   }
+
+  async function HandleUpdateSubSets(modifiedSubSets: SubSetProps[]) {
+    if (modifiedSubSets.length === 0) return;
+    setIsModifyingSubSets(true);
+
+    const editedSubSets = await PutAPI(
+      "/subset/multi",
+      {
+        subsets: modifiedSubSets.map((subSet) => {
+          const orig = originalSubSets?.find(
+            (o) => o.position === subSet.position,
+          );
+          return {
+            name: subSet.name,
+            position: subSet.position,
+            code: subSet.code,
+            subsetId: orig?.id ?? subSet.id,
+          };
+        }),
+      },
+      true,
+    );
+    console.log("editedSubSets", editedSubSets);
+    if (editedSubSets.status === 200) {
+      toast.success("Subconjuntos atualizados com sucesso");
+      await GetSubSets();
+      setSelectedLayoutStep(6);
+    } else {
+      toast.error("Erro ao atualizar Subconjuntos");
+    }
+
+    setIsModifyingSubSets(false);
+  }
+
+  async function HandleDeleteSubSets(modifiedSubSets: SubSetProps[]) {
+    if (modifiedSubSets.length === 0) return;
+    setIsModifyingSubSets(true);
+    const ids = modifiedSubSets.map((subSet) => subSet.id).join(",");
+    const deletedSubSets = await DeleteAPI(`/subset?subsets=${ids}`, true);
+    console.log("deletedSubSets", deletedSubSets);
+    if (deletedSubSets.status === 200) {
+      toast.success("Subconjuntos deletados com sucesso");
+      await GetSubSets();
+      setSelectedLayoutStep(6);
+    } else {
+      toast.error("Erro ao deletar as Subconjuntos");
+    }
+    return setIsModifyingSubSets(false);
+  }
+
+  const HandleNextStep = () => {
+    // 1. Get current subsets from the layout data
+    const currentSubSets: SubSetProps[] =
+      layoutData.areas?.flatMap(
+        (area) =>
+          area.sectors?.flatMap(
+            (sector) =>
+              sector.equipments?.flatMap(
+                (eq) =>
+                  eq.sets?.flatMap(
+                    (set) =>
+                      set.subSets?.filter(
+                        (subSet) => subSet.name && subSet.code,
+                      ) || [],
+                  ) || [],
+              ) || [],
+          ) || [],
+      ) || [];
+
+    // Sort the current subsets by position
+    currentSubSets.sort(sortByPosition);
+
+    // 2. Get original subsets
+    const original = originalSubSets || [];
+
+    // 3. Find new subsets (those in current but not in original)
+    const newSubSets = currentSubSets.filter(
+      (s) => !original.find((o) => o.id === s.id),
+    );
+
+    // 4. Find modified subsets (those in both but with different values)
+    const modifiedSubSets = currentSubSets.filter((s) => {
+      const o = original.find((o) => o.id === s.id);
+      return o && (o.name !== s.name || o.code !== s.code);
+    });
+
+    // 5. Find deleted subsets (those in original but not in current)
+    const deletedSubSets = original.filter(
+      (o) => !currentSubSets.find((s) => s.id === o.id),
+    );
+
+    // 6. Execute API calls
+    const promises: Promise<void>[] = [];
+    if (newSubSets.length) promises.push(HandleCreateSubSets(newSubSets));
+    if (modifiedSubSets.length)
+      promises.push(HandleUpdateSubSets(modifiedSubSets));
+    if (deletedSubSets.length)
+      promises.push(HandleDeleteSubSets(deletedSubSets));
+
+    // 7. Handle completion
+    if (promises.length > 0) {
+      Promise.all(promises).then(() => {
+        setSelectedLayoutStep(6);
+      });
+    } else {
+      setSelectedLayoutStep(6);
+    }
+  };
 
   useEffect(() => {
     if (!layoutData.areas) return;
@@ -348,6 +547,28 @@ export function SubSetAccordion({
     }
   }, [layoutData.areas, selectedEquipment?.position, query]);
 
+  useEffect(() => {
+    const minFields = 3;
+    setSubSetsArrayLength(Math.max(minFields, inputSubSetsValues.length));
+  }, [inputSubSetsValues]);
+
+  useEffect(() => {
+    if (!selectedSet) return;
+
+    // Find the current set in the layout data
+    const currentSet = layoutData.areas
+      ?.flatMap((area) => area.sectors || [])
+      ?.flatMap((sector) => sector.equipments || [])
+      ?.flatMap((eq) => eq.sets || [])
+      ?.find((set) => set.id === selectedSet.id);
+
+    if (currentSet?.subSets) {
+      // Update the input values with the current subsets
+      setInputSubSetsValues(currentSet.subSets);
+      setSubSetsArrayLength(Math.max(3, currentSet.subSets.length));
+    }
+  }, [layoutData, selectedSet]);
+
   return (
     <>
       <AccordionItem value="5" onClick={() => setSelectedLayoutStep(5)}>
@@ -372,8 +593,8 @@ export function SubSetAccordion({
                   </span>
                 </div>
               </div>
-              {selectedLayoutStep === 5 && selectedSet === null && (
-                <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4">
+                {selectedLayoutStep === 5 && selectedSet !== null ? (
                   <DropdownMenu
                     open={isDropdownOpen}
                     onOpenChange={setIsDropdownOpen}
@@ -405,55 +626,19 @@ export function SubSetAccordion({
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                ) : selectedLayoutStep === 5 && selectedSet === null ? (
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
-                      const currentSubSets =
-                        layoutData.areas?.flatMap(
-                          (area) =>
-                            area.sectors?.flatMap(
-                              (sector) =>
-                                sector.equipments?.flatMap(
-                                  (eq) =>
-                                    eq.sets?.flatMap(
-                                      (set) => set.subSets || [],
-                                    ) || [],
-                                ) || [],
-                            ) || [],
-                        ) || [];
-                      let newSubSets: SubSetProps[] = [];
-                      if (originalSubSets) {
-                        newSubSets = currentSubSets.filter(
-                          (subset) =>
-                            !originalSubSets.find(
-                              (original) =>
-                                original.position === subset.position,
-                            ),
-                        );
-                      } else {
-                        newSubSets = currentSubSets;
-                      }
-                      if (newSubSets.length > 0) {
-                        HandleCreateSubSets(newSubSets);
-                      } else {
-                        setSelectedLayoutStep(6);
-                      }
+                      HandleNextStep();
                     }}
                     className={cn(
                       "bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4",
-                      // layoutData &&
-                      //   layoutData.areas &&
-                      //   layoutData.areas.find((area) =>
-                      //     area.sectors?.find((sector) =>
-                      //       sector.equipments?.find((eq) =>
-                      //         eq.sets?.find((set) => !set.subSets),
-                      //       ),
-                      //     ),
-                      //   ) &&
-                      //   "pointer-events-none cursor-not-allowed opacity-50",
+                      !hasAnySubSets &&
+                        "pointer-events-none cursor-not-allowed opacity-50",
                     )}
                   >
-                    {isCreatingSubSets ? (
+                    {isModifyingSubSets ? (
                       <>
                         <span className="hidden md:block">Salvando...</span>
                         <Loader2 className="h-4 animate-spin md:h-8" />
@@ -465,8 +650,10 @@ export function SubSetAccordion({
                       </>
                     )}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <></>
+                )}
+              </div>
             </div>
           )}
         </AccordionTrigger>
@@ -658,50 +845,81 @@ export function SubSetAccordion({
                   </div>
                   <div className="flex h-60 w-full flex-col">
                     <ScrollArea className="h-full">
-                      {[...Array(subSetsArrayLength)].map((_, index) => (
-                        <div
-                          key={index}
-                          className="col-span-3 mb-1 flex items-end justify-between gap-2 px-2 md:gap-4 md:px-4"
-                        >
+                      {[...Array(subSetsArrayLength)].map((_, index) => {
+                        // Make sure inputSubSetsValues[index] exists
+                        const subSet = inputSubSetsValues[index] || {
+                          name: "",
+                          code: "",
+                          position: "",
+                          id: "",
+                          cip: null,
+                        };
+
+                        return (
                           <div
-                            className={cn(
-                              "text-primary flex h-10 w-10 min-w-10 items-center justify-center rounded-2xl bg-white font-bold shadow-[0px_2px_7px_rgba(0,0,0,0.15)] md:h-12 md:w-12 md:min-w-12",
-                              isSubSetFullyFilled(inputSubSetsValues[index]) &&
-                                "bg-primary text-white",
-                            )}
+                            key={index}
+                            className="col-span-3 mb-1 flex items-end justify-between gap-2 px-2 md:gap-4 md:px-4"
                           >
-                            <span>{index + 1}.</span>
+                            <div
+                              className={cn(
+                                "text-primary flex h-10 w-10 min-w-10 items-center justify-center rounded-2xl bg-white font-bold shadow-[0px_2px_7px_rgba(0,0,0,0.15)] md:h-12 md:w-12 md:min-w-12",
+                                isSubSetFullyFilled(
+                                  inputSubSetsValues[index],
+                                ) && "bg-primary text-white",
+                              )}
+                            >
+                              <span>{index + 1}.</span>
+                            </div>
+                            <div className="flex w-full flex-col">
+                              <span className="text-primary text-xs md:text-sm">
+                                Nome do Subconjunto
+                              </span>
+                              <input
+                                type="text"
+                                className="h-10 w-full rounded-2xl bg-white p-2 px-2 text-xs shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] placeholder:text-neutral-300 focus:outline-none md:h-12 md:px-4 md:text-sm"
+                                placeholder="Identificação do Subconjunto"
+                                onChange={(e) =>
+                                  handleInputChange(
+                                    index,
+                                    "name",
+                                    e.target.value,
+                                  )
+                                }
+                                value={subSet?.name || ""}
+                              />
+                            </div>
+                            <div className="flex w-full flex-col">
+                              <span className="text-primary text-xs md:text-sm">
+                                Código do Subconjunto
+                              </span>
+                              <input
+                                type="text"
+                                className="h-10 w-full rounded-2xl bg-white p-2 px-2 text-xs shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] placeholder:text-neutral-300 focus:outline-none md:h-12 md:px-4 md:text-sm"
+                                placeholder="Código do Subconjunto"
+                                onChange={(e) =>
+                                  handleInputChange(
+                                    index,
+                                    "code",
+                                    e.target.value,
+                                  )
+                                }
+                                value={subSet?.code || ""}
+                              />
+                            </div>
+                            <button
+                              onClick={() => handleRemoveSubSet(index)}
+                              className={cn(
+                                "bg-primary pointer-events-none cursor-not-allowed rounded-md p-2 text-white opacity-50",
+                                inputSubSetsValues[index]?.name &&
+                                  inputSubSetsValues[index]?.code &&
+                                  "pointer-events-auto cursor-auto opacity-100",
+                              )}
+                            >
+                              <Trash />
+                            </button>
                           </div>
-                          <div className="flex w-full flex-col">
-                            <span className="text-primary text-xs md:text-sm">
-                              Nome do Subconjunto
-                            </span>
-                            <input
-                              type="text"
-                              className="h-10 w-full rounded-2xl bg-white p-2 px-2 text-xs shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] placeholder:text-neutral-300 focus:outline-none md:h-12 md:px-4 md:text-sm"
-                              placeholder="Identificação do Subconjunto"
-                              onChange={(e) =>
-                                handleInputChange(index, "name", e.target.value)
-                              }
-                              value={inputSubSetsValues[index].name}
-                            />
-                          </div>
-                          <div className="flex w-full flex-col">
-                            <span className="text-primary text-xs md:text-sm">
-                              Código do Subconjunto
-                            </span>
-                            <input
-                              type="text"
-                              className="h-10 w-full rounded-2xl bg-white p-2 px-2 text-xs shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] placeholder:text-neutral-300 focus:outline-none md:h-12 md:px-4 md:text-sm"
-                              placeholder="Código do Subconjunto"
-                              onChange={(e) =>
-                                handleInputChange(index, "code", e.target.value)
-                              }
-                              value={inputSubSetsValues[index].code}
-                            />
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </ScrollArea>
                   </div>
                   <div className="flex w-full items-center justify-between gap-2 px-2 md:px-4">
@@ -1090,6 +1308,7 @@ export function SubSetAccordion({
         <SubSetTemplateSheet
           open={isSubSetTemplateSheetOpen}
           onClose={() => setIsSubSetTemplateSheetOpen(false)}
+          selectedSet={selectedSet}
         />
       )}
     </>
