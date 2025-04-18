@@ -18,6 +18,7 @@ import { v4 } from "uuid";
 interface EquipmentTemplateSheetProps {
   open: boolean;
   onClose: () => void;
+  selectedSector: SectorProps | null;
 }
 
 interface TemplateInstanceProps {
@@ -37,6 +38,7 @@ interface TemplateInstanceProps {
 export function EquipmentTemplateSheet({
   open,
   onClose,
+  selectedSector,
 }: EquipmentTemplateSheetProps) {
   const { layoutData, setLayoutData } = useLayoutContext();
   const [selectedTemplates, setSelectedTemplates] = useState<
@@ -115,35 +117,8 @@ export function EquipmentTemplateSheet({
       return;
     }
 
-    // Get the currently selected sector from the EquipmentAccordion
-    const selectedSectorElement = document.querySelector(
-      '.bg-primary input[disabled][placeholder="Nome da Área"]',
-    );
-    if (!selectedSectorElement) {
-      toast.error("Selecione um setor primeiro");
-      return;
-    }
-
-    const sectorName = (selectedSectorElement as HTMLInputElement).value;
-    const sectorPosition =
-      document.querySelector(".bg-primary span")?.textContent?.trim() || "";
-
-    // Find the sector in layoutData
-    let selectedSector: SectorProps | null = null;
-    for (const area of layoutData.areas) {
-      if (!area.sectors) continue;
-
-      const sector = area.sectors.find(
-        (s) => s.name === sectorName && s.position === sectorPosition,
-      );
-      if (sector) {
-        selectedSector = sector;
-        break;
-      }
-    }
-
     if (!selectedSector) {
-      toast.error("Setor não encontrado");
+      toast.error("Selecione um setor primeiro");
       return;
     }
 
@@ -154,7 +129,7 @@ export function EquipmentTemplateSheet({
         if (!area.sectors) return area;
 
         const updatedSectors = area.sectors.map((sector) => {
-          if (sector.id !== selectedSector!.id) return sector;
+          if (sector.id !== selectedSector.id) return sector;
 
           // Clone existing equipments or create empty array
           const existing = sector.equipments || [];

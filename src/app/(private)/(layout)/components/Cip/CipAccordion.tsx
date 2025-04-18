@@ -29,7 +29,7 @@ import {
 import { ScrollArea } from "@/components/global/ui/scroll-area";
 import { useApiContext } from "@/context/ApiContext";
 import { useLayoutContext } from "@/context/LayoutContext";
-import { cn } from "@/lib/utils";
+import { cn, sortByPosition } from "@/lib/utils";
 import { DropdownMenuArrow } from "@radix-ui/react-dropdown-menu";
 import { ArrowRight, ChevronLeft, Loader2, Search, Upload } from "lucide-react";
 import Image from "next/image";
@@ -1095,7 +1095,8 @@ export function CipAccordion({
                   ?.flatMap((sector) => sector.equipments || [])
                   ?.flatMap((eq) => eq.sets || [])
                   ?.find((set) => set.position === selectedSet?.position)
-                  ?.subSets?.filter((subSet) =>
+                  ?.subSets?.sort(sortByPosition)
+                  .filter((subSet) =>
                     subSet.name.toLowerCase().includes(query.toLowerCase()),
                   )
                   .slice((currentSubSetPage - 1) * 6, currentSubSetPage * 6)
@@ -1300,7 +1301,8 @@ export function CipAccordion({
                   ?.flatMap((area) => area.sectors || [])
                   ?.flatMap((sector) => sector.equipments || [])
                   ?.find((eq) => eq.position === selectedEquipment.position)
-                  ?.sets?.filter((set) =>
+                  ?.sets?.sort(sortByPosition)
+                  .filter((set) =>
                     set.name.toLowerCase().includes(query.toLowerCase()),
                   )
                   .slice((currentSubSetPage - 1) * 6, currentSubSetPage * 6)
@@ -1383,6 +1385,7 @@ export function CipAccordion({
                   layoutData.areas
                     .flatMap((area) => area.sectors || [])
                     .flatMap((sector) => sector.equipments || [])
+                    .sort(sortByPosition)
                     .filter((item) =>
                       item.name.toLowerCase().includes(query.toLowerCase()),
                     )

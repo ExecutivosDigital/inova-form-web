@@ -431,6 +431,7 @@ export function EquipmentAccordion({
       },
       true,
     );
+    console.log("newEquipments", newEquipments);
     if (newEquipments.status === 200) {
       toast.success("Equipamentos cadastrados com sucesso");
       await GetEquipments();
@@ -1589,6 +1590,7 @@ export function EquipmentAccordion({
         <EquipmentTemplateSheet
           open={isEquipmentTemplateSheetOpen}
           onClose={() => setIsEquipmentTemplateSheetOpen(false)}
+          selectedSector={selectedSector}
         />
       )}
     </>
