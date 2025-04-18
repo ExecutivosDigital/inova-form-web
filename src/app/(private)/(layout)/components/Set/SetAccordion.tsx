@@ -342,6 +342,7 @@ export function SetAccordion({
       },
       true,
     );
+    console.log("newSetResponse", newSetResponse);
     if (newSetResponse.status === 200) {
       toast.success("Conjuntos cadastrados com sucesso");
       await GetSets(); // re-fetch areas from the API
@@ -533,6 +534,22 @@ export function SetAccordion({
     }
   }, [layoutData.areas]);
 
+  useEffect(() => {
+    if (!selectedEquipment) return;
+
+    // Find the current equipment in the layout data
+    const currentEquipment = layoutData.areas
+      ?.flatMap((area) => area.sectors || [])
+      ?.flatMap((sector) => sector.equipments || [])
+      ?.find((eq) => eq.id === selectedEquipment.id);
+
+    if (currentEquipment?.sets) {
+      // Update the input values with the current sets
+      setInputSetsValues(currentEquipment.sets);
+      setSetsArrayLength(Math.max(3, currentEquipment.sets.length));
+    }
+  }, [layoutData, selectedEquipment]);
+
   return (
     <>
       <AccordionItem value="4" onClick={() => setSelectedLayoutStep(4)}>
@@ -555,8 +572,8 @@ export function SetAccordion({
                   </span>
                 </div>
               </div>
-              {selectedLayoutStep === 4 && selectedEquipment === null && (
-                <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4">
+                {selectedLayoutStep === 4 && selectedEquipment !== null ? (
                   <DropdownMenu
                     open={isDropdownOpen}
                     onOpenChange={setIsDropdownOpen}
@@ -588,6 +605,7 @@ export function SetAccordion({
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                ) : selectedLayoutStep === 4 && !selectedEquipment ? (
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
@@ -611,8 +629,10 @@ export function SetAccordion({
                       </>
                     )}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <></>
+                )}
+              </div>
             </div>
           )}
         </AccordionTrigger>
@@ -1109,6 +1129,7 @@ export function SetAccordion({
         <SetTemplateSheet
           open={isSetTemplateSheetOpen}
           onClose={() => setIsSetTemplateSheetOpen(false)}
+          selectedEquipment={selectedEquipment}
         />
       )}
     </>
