@@ -45,6 +45,7 @@ export function SectorAccordion({
     GetSectors,
     originalSectors,
     isGettingData,
+    GetAllData,
   } = useLayoutContext();
   const { PostAPI, PutAPI, DeleteAPI } = useApiContext();
   const [currentAreaPage, setCurrentAreaPage] = useState(1);
@@ -209,7 +210,7 @@ export function SectorAccordion({
 
     if (editedSectors.status === 200) {
       toast.success("Setores atualizados com sucesso");
-      await GetSectors();
+      await GetAllData();
       setSelectedLayoutStep(3);
     } else {
       toast.error("Erro ao atualizar Setores");

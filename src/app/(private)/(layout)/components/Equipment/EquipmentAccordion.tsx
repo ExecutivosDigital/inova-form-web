@@ -72,6 +72,7 @@ export function EquipmentAccordion({
     query,
     setQuery,
     isGettingData,
+    GetAllData,
   } = useLayoutContext();
   const { PostAPI, PutAPI, DeleteAPI } = useApiContext();
   const [selectedSector, setSelectedSector] = useState<SectorProps | null>(
@@ -478,7 +479,7 @@ export function EquipmentAccordion({
       // Clear photo changes after successful update
       setPhotoChanges({});
       toast.success("Equipamentos atualizados com sucesso");
-      await GetEquipments();
+      await GetAllData();
       setSelectedLayoutStep(4);
     } else {
       toast.error("Erro ao atualizar Equipamentos");

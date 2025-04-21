@@ -55,6 +55,7 @@ export function SetAccordion({
     query,
     setQuery,
     isGettingData,
+    GetAllData,
   } = useLayoutContext();
   const { PostAPI, PutAPI, DeleteAPI } = useApiContext();
   const [selectedSector, setSelectedSector] = useState<SectorProps | null>(
@@ -375,7 +376,7 @@ export function SetAccordion({
 
     if (editedSets.status === 200) {
       toast.success("Conjuntos atualizados com sucesso");
-      await GetSets();
+      await GetAllData();
       setSelectedLayoutStep(5);
     } else {
       toast.error("Erro ao atualizar Conjuntos");

@@ -60,6 +60,7 @@ export function SubSetAccordion({
     query,
     setQuery,
     isGettingData,
+    GetAllData,
   } = useLayoutContext();
   const { PostAPI, PutAPI, DeleteAPI } = useApiContext();
   const [selectedSector, setSelectedSector] = useState<SectorProps | null>(
@@ -413,7 +414,7 @@ export function SubSetAccordion({
     console.log("editedSubSets", editedSubSets);
     if (editedSubSets.status === 200) {
       toast.success("Subconjuntos atualizados com sucesso");
-      await GetSubSets();
+      await GetAllData();
       setSelectedLayoutStep(6);
     } else {
       toast.error("Erro ao atualizar Subconjuntos");

@@ -33,8 +33,14 @@ export function AreaAccordion({
   selectedLayoutStep,
   setSelectedLayoutStep,
 }: AreaAccordionProps) {
-  const { layoutData, setLayoutData, GetAreas, originalAreas, isGettingData } =
-    useLayoutContext();
+  const {
+    layoutData,
+    setLayoutData,
+    GetAreas,
+    originalAreas,
+    isGettingData,
+    GetAllData,
+  } = useLayoutContext();
   const { PostAPI, PutAPI, DeleteAPI } = useApiContext();
   const [areasArrayLength, setAreasArrayLength] = useState(5);
   const [inputValues, setInputValues] = useState<string[]>(
@@ -145,7 +151,7 @@ export function AreaAccordion({
 
     if (editedAreas.status === 200) {
       toast.success("Áreas atualizadas com sucesso");
-      await GetAreas();
+      await GetAllData();
       setSelectedLayoutStep(2);
     } else {
       toast.error("Erro ao atualizar Áreas");
