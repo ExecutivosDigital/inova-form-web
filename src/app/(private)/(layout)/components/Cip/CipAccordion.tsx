@@ -56,7 +56,7 @@ export function CipAccordion({
     setQuery,
     isGettingData,
   } = useLayoutContext();
-  const { PostAPI } = useApiContext();
+  const { PostAPI, PutAPI, DeleteAPI } = useApiContext();
   const [selectedEquipment, setSelectedEquipment] =
     useState<EquipmentsProps | null>(null);
   const [selectedSet, setSelectedSet] = useState<SetProps | null>(null);
@@ -86,7 +86,7 @@ export function CipAccordion({
       cip: null,
     })),
   );
-  const [isCreatingCips, setIsCreatingCips] = useState(false);
+  const [isModifyingCips, setIsModifyingCips] = useState(false);
   const [isCipTemplateSheetOpen, setIsCipTemplateSheetOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
@@ -127,10 +127,10 @@ export function CipAccordion({
 
   const handleInputChange = (
     index: number,
-    field: keyof CipProps, // typically "name" when the user types in the CIP name
+    field: keyof CipProps,
     value: string,
   ) => {
-    // Ensure that all the required selections exist.
+    // Ensure that all the required selections exist
     if (
       !selectedSector ||
       !selectedEquipment ||
@@ -139,115 +139,134 @@ export function CipAccordion({
     )
       return;
 
-    // Construct the full position for this CIP.
-    // For example, if selectedSubSet.position === "1.1.3.5.2", then the first CIP is "1.1.3.5.2.1"
     const fullposition = `${selectedSubSet.position}.${index + 1}`;
 
-    // First, update the local CIP input values for immediate UI response.
     setInputCipValues((prev) => {
+      // Create a new array with proper length
       const updatedInputs = [...prev];
+
+      // Ensure the object at this index exists
+      if (!updatedInputs[index]) {
+        updatedInputs[index] = {
+          name: "",
+          code: "",
+          id: "",
+          position: fullposition,
+        };
+      }
+
+      // Update the field
       updatedInputs[index] = {
         ...updatedInputs[index],
-        // When the user types, update the field (usually "name"). We do not change the code here.
         [field]: value,
       };
-      return updatedInputs;
+
+      // Recalculate all positions to ensure they're sequential
+      return updatedInputs.map((cip, idx) => ({
+        ...cip,
+        position: `${selectedSubSet.position}.${idx + 1}`,
+      }));
     });
 
-    // Now update the nested layoutData.
     setLayoutData((prevLayout) => {
-      if (!prevLayout.areas) return prevLayout; // Nothing to update if there are no areas.
+      if (!prevLayout.areas) return prevLayout; // Ensure areas exist
 
-      // We'll update the layout by traversing to the correct sub-set.
       const updatedAreas = prevLayout.areas.map((area) => {
-        if (!area.sectors) return area;
+        if (!area.sectors) return area; // Skip areas without sectors
 
         const updatedSectors = area.sectors.map((sector) => {
-          if (sector.position !== selectedSector.position) return sector;
+          if (sector.position !== selectedSector.position) return sector; // Skip unrelated sectors
 
-          // Clone the equipments array.
+          // Ensure equipments exist in sector
           const updatedEquipments = sector.equipments
             ? [...sector.equipments]
             : [];
 
-          // Find the equipment.
-          const equipmentIndex = updatedEquipments.findIndex(
+          const existingEquipmentIndex = updatedEquipments.findIndex(
             (equipment) => equipment.position === selectedEquipment.position,
           );
-          if (equipmentIndex === -1) return sector;
 
-          const equipment = updatedEquipments[equipmentIndex];
-          // Clone the sets array.
-          const updatedSets = equipment.sets ? [...equipment.sets] : [];
+          if (existingEquipmentIndex !== -1) {
+            // Find the correct equipment
+            const equipment = updatedEquipments[existingEquipmentIndex];
 
-          // Find the matching set.
-          const setIndex = updatedSets.findIndex(
-            (set) => set.position === selectedSet.position,
-          );
-          if (setIndex === -1) return sector;
+            // Ensure sets exist in equipment
+            const updatedSets = equipment.sets ? [...equipment.sets] : [];
 
-          const currentSet = updatedSets[setIndex];
-          // Clone the subSets array.
-          const updatedSubSets = currentSet.subSets
-            ? [...currentSet.subSets]
-            : [];
+            const existingSetIndex = updatedSets.findIndex(
+              (set) => set.position === selectedSet.position,
+            );
 
-          // Locate the correct sub-set by its position.
-          const subSetIndex = updatedSubSets.findIndex(
-            (subSet) => subSet.position === selectedSubSet.position,
-          );
-          if (subSetIndex === -1) return sector;
+            if (existingSetIndex !== -1) {
+              // Find the correct set
+              const set = updatedSets[existingSetIndex];
 
-          const currentSubSet = updatedSubSets[subSetIndex];
+              // Ensure subSets exist
+              const updatedSubSets = set.subSets ? [...set.subSets] : [];
 
-          // Clone (or start a new array) for the CIP list.
-          const updatedCIPs = currentSubSet.cip ? [...currentSubSet.cip] : [];
+              const existingSubSetIndex = updatedSubSets.findIndex(
+                (subSet) => subSet.position === selectedSubSet.position,
+              );
 
-          // Look for an existing CIP with the computed full position.
-          const cipIndex = updatedCIPs.findIndex(
-            (cip) => cip.position === fullposition,
-          );
+              if (existingSubSetIndex !== -1) {
+                // Find the correct subSet
+                const subSet = updatedSubSets[existingSubSetIndex];
 
-          if (cipIndex !== -1) {
-            // CIP already exists: update the field (for example, name) with the new value.
-            updatedCIPs[cipIndex] = {
-              ...updatedCIPs[cipIndex],
-              [field]: value,
+                // Ensure cips exist or create an empty array
+                const updatedCips = subSet.cip ? [...subSet.cip] : [];
+
+                // Find the existing cip by position
+                const existingCipIndex = updatedCips.findIndex(
+                  (cip) => cip.position === fullposition,
+                );
+
+                if (existingCipIndex !== -1) {
+                  // If the cip exists, update the specified field
+                  updatedCips[existingCipIndex] = {
+                    ...updatedCips[existingCipIndex],
+                    [field]: value,
+                  };
+                } else {
+                  // If the cip doesn't exist, add a new one
+                  updatedCips.push({
+                    name: "",
+                    code: (getMaxCipCode(prevLayout) + 1).toString(),
+                    id: v4(), // Unique ID
+                    position: fullposition,
+                    [field]: value,
+                  });
+                }
+
+                // Assign updated cips back to the subSet
+                updatedSubSets[existingSubSetIndex] = {
+                  ...subSet,
+                  cip: updatedCips, // Update cips array in this subSet
+                };
+              }
+
+              // Assign updated subSets back to the set
+              updatedSets[existingSetIndex] = {
+                ...set,
+                subSets: updatedSubSets, // Update subSets array in this set
+              };
+            }
+
+            // Assign updated sets back to equipment
+            updatedEquipments[existingEquipmentIndex] = {
+              ...equipment,
+              sets: updatedSets, // Update sets array in this equipment
             };
-          } else {
-            // CIP doesn't exist: we are adding a new one.
-            // Get the next available code: if no CIP exists anywhere, getMaxCipCode returns 999, so new code becomes 1000.
-            const newCIPCode = getMaxCipCode(prevLayout) + 1;
-            updatedCIPs.push({
-              name: field === "name" ? value : "", // set the name if the field is "name"
-              code: newCIPCode.toString(),
-              id: v4(), // generate a unique ID
-              position: fullposition,
-              // Spread any other fields if needed.
-            });
           }
-
-          // After updating the CIP array, update the sub-set.
-          updatedSubSets[subSetIndex] = {
-            ...currentSubSet,
-            cip: updatedCIPs.length > 0 ? updatedCIPs : null,
-          };
-          // Update the set with the modified subSets.
-          updatedSets[setIndex] = { ...currentSet, subSets: updatedSubSets };
-          // Update the equipment with the modified sets.
-          updatedEquipments[equipmentIndex] = {
-            ...equipment,
-            sets: updatedSets,
-          };
 
           return {
             ...sector,
-            equipments: updatedEquipments.length > 0 ? updatedEquipments : null,
+            equipments: updatedEquipments.length > 0 ? updatedEquipments : null, // Ensure correct type
           };
         });
+
         return {
           ...area,
-          sectors: updatedSectors.length > 0 ? updatedSectors : [],
+          sectors: updatedSectors.length > 0 ? updatedSectors : [], // Ensure correct type
         };
       });
 
@@ -255,26 +274,6 @@ export function CipAccordion({
         ...prevLayout,
         areas: updatedAreas.length > 0 ? updatedAreas : [],
       };
-    });
-
-    // Finally, update the local input values to ensure the code field reflects the generated code.
-    // We run this in a second setter call to ensure that the layoutData update (in the closure) is used.
-    setInputCipValues((prev) => {
-      const updatedInputs = [...prev];
-      // Look again in the (now updated) layoutData for our CIP at fullposition.
-      // (This assumes that the layoutData update is synchronous; if not, you might derive the code above.)
-      // For safety, we derive the code from the current value in the input if available.
-      // Alternatively, you may store the new code in a temporary variable.
-      // Here we recompute the new code by calling getMaxCipCode on the global layoutData.
-      const newCode = getMaxCipCode(layoutData) + 1;
-      // If the current CIP input doesn't have a code yet (empty string), set it.
-      if (!updatedInputs[index].code) {
-        updatedInputs[index] = {
-          ...updatedInputs[index],
-          code: newCode.toString(),
-        };
-      }
-      return updatedInputs;
     });
   };
 
@@ -318,11 +317,11 @@ export function CipAccordion({
     ]);
   };
 
-  async function HandleCreateCips(newCip?: CipProps[]) {
-    setIsCreatingCips(true);
+  async function HandleCreateCips(modifiedCips?: CipProps[]) {
+    setIsModifyingCips(true);
     // If no new equipments are provided, get them by flattening the equipments from all sectors in all areas.
     const cipsToSend =
-      newCip ||
+      modifiedCips ||
       layoutData.areas?.flatMap((area) =>
         area.sectors?.flatMap((sector) =>
           sector.equipments?.flatMap((eq) =>
@@ -336,7 +335,7 @@ export function CipAccordion({
         ),
       );
 
-    const newCipResponse = await PostAPI(
+    const newCips = await PostAPI(
       "/cip/multi",
       {
         cips: cipsToSend?.map((cip) => {
@@ -375,15 +374,151 @@ export function CipAccordion({
       },
       true,
     );
-    if (newCipResponse.status === 200) {
+    console.log("newCips", newCips);
+    if (newCips.status === 200) {
       toast.success("CIPs cadastrados com sucesso");
       await GetCips(); // re-fetch areas from the API
       setSelectedLayoutStep(7);
-      return setIsCreatingCips(false);
+      return setIsModifyingCips(false);
     }
     toast.error("Erro ao cadastrar CIPs");
-    return setIsCreatingCips(false);
+    return setIsModifyingCips(false);
   }
+
+  async function HandleUpdateCips(modifiedCips: CipProps[]) {
+    if (modifiedCips.length === 0) return;
+    setIsModifyingCips(true);
+
+    const editedCips = await PutAPI(
+      "/cip/multi",
+      {
+        cips: modifiedCips.map((cip) => {
+          const orig = originalCips?.find((o) => o.position === cip.position);
+
+          // Find the subset that contains this CIP
+          let subsetId = "";
+          const parts = cip.position.split(".");
+          if (parts && parts.length >= 5) {
+            // Join parts to get the subset position (e.g., "1.1.1.1.1")
+            const subsetPos = parts.slice(0, 5).join(".");
+
+            // Find the subset in the layout data
+            const subset = layoutData.areas
+              ?.flatMap(
+                (area) =>
+                  area.sectors?.flatMap(
+                    (sector) =>
+                      sector.equipments?.flatMap(
+                        (eq) =>
+                          eq.sets?.flatMap((set) => set.subSets || []) || [],
+                      ) || [],
+                  ) || [],
+              )
+              .find((subset) => subset.position === subsetPos);
+
+            subsetId = subset?.id || "";
+          }
+
+          return {
+            name: cip.name,
+            position: cip.position,
+            code: cip.code,
+            cipId: orig?.id ?? cip.id,
+            subsetId: subsetId, // Include the found subsetId
+          };
+        }),
+      },
+      true,
+    );
+    console.log("editedCips", editedCips);
+    if (editedCips.status === 200) {
+      toast.success("CIPs atualizados com sucesso");
+      await GetCips();
+      setSelectedLayoutStep(7);
+    } else {
+      toast.error("Erro ao atualizar CIPs");
+    }
+
+    setIsModifyingCips(false);
+  }
+
+  async function HandleDeleteCips(modifiedCips: CipProps[]) {
+    if (modifiedCips.length === 0) return;
+    setIsModifyingCips(true);
+
+    const ids = modifiedCips.map((cip) => cip.id).join(",");
+    const deletedCips = await DeleteAPI(`/cip?cips=${ids}`, true);
+    console.log(" deletedCips", deletedCips);
+    if (deletedCips.status === 200) {
+      toast.success("CIPs deletados com sucesso");
+      await GetCips();
+      setSelectedLayoutStep(7);
+    } else {
+      toast.error("Erro ao deletar CIPs");
+    }
+
+    return setIsModifyingCips(false);
+  }
+
+  // Add this function to handle all operations in one place
+  const HandleNextStep = () => {
+    // 1. Get current CIPs from the layout data
+    const currentCips: CipProps[] =
+      layoutData.areas?.flatMap(
+        (area) =>
+          area.sectors?.flatMap(
+            (sector) =>
+              sector.equipments?.flatMap(
+                (eq) =>
+                  eq.sets?.flatMap(
+                    (set) =>
+                      set.subSets?.flatMap(
+                        (subSet) =>
+                          subSet.cip?.filter((cip) => cip.name && cip.code) ||
+                          [],
+                      ) || [],
+                  ) || [],
+              ) || [],
+          ) || [],
+      ) || [];
+
+    // Sort the current CIPs by position
+    currentCips.sort(sortByPosition);
+
+    // 2. Get original CIPs
+    const original = originalCips || [];
+
+    // 3. Find new CIPs (those in current but not in original)
+    const newCips = currentCips.filter(
+      (c) => !original.find((o) => o.id === c.id),
+    );
+
+    // 4. Find modified CIPs (those in both but with different values)
+    const modifiedCips = currentCips.filter((c) => {
+      const o = original.find((o) => o.id === c.id);
+      return o && (o.name !== c.name || o.code !== c.code);
+    });
+
+    // 5. Find deleted CIPs (those in original but not in current)
+    const deletedCips = original.filter(
+      (o) => !currentCips.find((c) => c.id === o.id),
+    );
+
+    // 6. Execute API calls
+    const promises: Promise<void>[] = [];
+    if (newCips.length) promises.push(HandleCreateCips(newCips));
+    if (modifiedCips.length) promises.push(HandleUpdateCips(modifiedCips));
+    if (deletedCips.length) promises.push(HandleDeleteCips(deletedCips));
+
+    // 7. Handle completion
+    if (promises.length > 0) {
+      Promise.all(promises).then(() => {
+        setSelectedLayoutStep(7);
+      });
+    } else {
+      setSelectedLayoutStep(7);
+    }
+  };
 
   useEffect(() => {
     if (!layoutData.areas) return;
@@ -543,46 +678,11 @@ export function CipAccordion({
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
-                      const currentCips =
-                        layoutData.areas?.flatMap(
-                          (area) =>
-                            area.sectors?.flatMap(
-                              (sector) =>
-                                sector.equipments?.flatMap(
-                                  (eq) =>
-                                    eq.sets?.flatMap(
-                                      (set) =>
-                                        set.subSets?.flatMap(
-                                          (subSet) =>
-                                            subSet.cip?.flatMap((cip) => cip) ||
-                                            [],
-                                        ) || [],
-                                    ) || [],
-                                ) || [],
-                            ) || [],
-                        ) || [];
-
-                      let newCips: CipProps[] = [];
-                      if (originalCips) {
-                        newCips = currentCips.filter(
-                          (subset) =>
-                            !originalCips.find(
-                              (original) =>
-                                original.position === subset.position,
-                            ),
-                        );
-                      } else {
-                        newCips = currentCips;
-                      }
-                      if (newCips.length > 0) {
-                        HandleCreateCips(newCips);
-                      } else {
-                        setSelectedLayoutStep(7);
-                      }
+                      HandleNextStep();
                     }}
                     className="bg-primary flex h-6 items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white md:h-10 md:px-4"
                   >
-                    {isCreatingCips ? (
+                    {isModifyingCips ? (
                       <>
                         <span className="hidden md:block">Salvando...</span>
                         <Loader2 className="h-4 animate-spin md:h-8" />
@@ -858,7 +958,7 @@ export function CipAccordion({
                           </span>
                           <input
                             type="text"
-                            className="h-10 w-full rounded-2xl bg-white p-2 px-2 text-xs shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] placeholder:text-neutral-300 focus:outline-none md:h-12 md:px-4 md:text-sm"
+                            className="h-10 w-full rounded-2xl bg-neutral-100 p-2 px-2 text-xs shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] placeholder:text-neutral-500 focus:outline-none md:h-12 md:px-4 md:text-sm"
                             placeholder="Código Preenchido automaticamente"
                             onChange={(e) =>
                               handleInputChange(index, "code", e.target.value)

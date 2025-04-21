@@ -22,7 +22,7 @@ import {
 import { ScrollArea } from "@/components/global/ui/scroll-area";
 import { useApiContext } from "@/context/ApiContext";
 import { useLayoutContext } from "@/context/LayoutContext";
-import { cn } from "@/lib/utils";
+import { cn, sortByPosition } from "@/lib/utils";
 import { DropdownMenuArrow } from "@radix-ui/react-dropdown-menu";
 import {
   ArrowRight,
@@ -1014,6 +1014,7 @@ export function SetAccordion({
                     .filter((sector) =>
                       sector.name.toLowerCase().includes(query.toLowerCase()),
                     )
+                    .sort(sortByPosition)
                     .slice((currentSectorPage - 1) * 12, currentSectorPage * 12)
                     .map((item, index) => (
                       <div key={index} className="flex flex-col gap-2">
