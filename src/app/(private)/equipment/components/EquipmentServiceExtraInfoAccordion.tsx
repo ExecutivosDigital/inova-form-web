@@ -691,7 +691,7 @@ export function EquipmentServiceExtraInfoAccordion({
                 )
                 .map((item, index) => (
                   <div key={index} className="flex flex-col gap-2">
-                    <label
+                    {/* <label
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedSector(
@@ -737,7 +737,7 @@ export function EquipmentServiceExtraInfoAccordion({
                             "shadow-[0px_2px_7px_rgba(0,0,0,0.5)]",
                         )}
                       />
-                    </label>
+                    </label> */}
                   </div>
                 ))}
             </>
