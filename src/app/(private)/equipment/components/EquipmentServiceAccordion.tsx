@@ -161,6 +161,11 @@ export function EquipmentServiceAccordion({
     );
   };
 
+  useEffect(() => {
+    console.log("layoutData: ", layoutData);
+    console.log("setSelectedSector: ", setSelectedSector);
+  }, []);
+
   return (
     <AccordionItem value="5" onClick={() => setSelectedEquipmentStep(5)}>
       <AccordionTrigger arrow>

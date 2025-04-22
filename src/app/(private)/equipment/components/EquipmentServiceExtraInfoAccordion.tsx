@@ -126,6 +126,11 @@ export function EquipmentServiceExtraInfoAccordion({
     return data.estimatedFinishTime && data.extraTeam;
   };
 
+  useEffect(() => {
+    console.log("layoutData: ", layoutData);
+    console.log("setSelectedSector: ", setSelectedSector);
+  }, []);
+
   return (
     <AccordionItem value="6" onClick={() => setSelectedEquipmentStep(6)}>
       <AccordionTrigger arrow>
