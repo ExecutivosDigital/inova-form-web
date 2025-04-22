@@ -15,7 +15,7 @@ import {
 } from "@/components/global/ui/popover";
 import { useEquipmentContext } from "@/context/EquipmentContext";
 import { useLayoutContext } from "@/context/LayoutContext";
-import { cn } from "@/lib/utils";
+import { cn, sortByPosition } from "@/lib/utils";
 import { ArrowRight, ChevronLeft, Search, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -530,6 +530,7 @@ export function EquipmentInfoAccordion({
                 </label>
               </div>
               {equipmentData
+                .sort(sortByPosition)
                 .slice(
                   (currentEquipmentPage - 1) * 12,
                   currentEquipmentPage * 12,
