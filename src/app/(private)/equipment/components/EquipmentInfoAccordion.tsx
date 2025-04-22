@@ -13,11 +13,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/global/ui/popover";
+import { useApiContext } from "@/context/ApiContext";
 import { useEquipmentContext } from "@/context/EquipmentContext";
 import { useLayoutContext } from "@/context/LayoutContext";
 import { cn, sortByPosition } from "@/lib/utils";
-import { ArrowRight, ChevronLeft, Search, Upload } from "lucide-react";
+import { ArrowRight, ChevronLeft, Loader2, Search, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 
 interface EquipmentInfoAccordionProps {
   selectedEquipmentStep: number;
@@ -29,7 +31,9 @@ export function EquipmentInfoAccordion({
   setSelectedEquipmentStep,
 }: EquipmentInfoAccordionProps) {
   const { layoutData } = useLayoutContext();
-  const { equipmentData, setEquipmentData } = useEquipmentContext();
+  const { equipmentData, setEquipmentData, originalEquipments, GetAllData } =
+    useEquipmentContext();
+  const { PutAPI } = useApiContext();
 
   const [isImportHovered, setIsImportHovered] = useState(false);
   const [selectedSector, setSelectedSector] = useState<SectorProps | null>(
@@ -41,6 +45,7 @@ export function EquipmentInfoAccordion({
   const [isEquipmentNameHovered, setIsEquipmentNameHovered] = useState(false);
   const [selectedEquipment, setSelectedEquipment] =
     useState<EquipmentTypeProps | null>(null);
+  const [isModifyingEquipments, setIsModifyingEquipments] = useState(false);
 
   const handleInputChange = (
     index: number,
@@ -64,6 +69,80 @@ export function EquipmentInfoAccordion({
         [field]: value,
       };
     });
+  };
+
+  async function HandleUpdateEquipments(
+    modifiedEquipments: EquipmentTypeProps[],
+  ) {
+    console.log("modifiedEquipments", modifiedEquipments);
+    if (modifiedEquipments.length === 0) return;
+    setIsModifyingEquipments(true);
+    const editedEquipments = await PutAPI(
+      "/equipment/multi",
+      {
+        equipments: modifiedEquipments.map((eq) => {
+          return {
+            equipmentId: eq.id,
+            initialRotation: Number(eq.initialRotation),
+            finalRotation: Number(eq.finalRotation),
+            lubrication: eq.lubrication,
+            power: Number(eq.power),
+            operationTemperature: Number(eq.operationTemperature),
+            mainComponent: eq.mainComponent,
+            RPM: Number(eq.RPM),
+            innerDiameter: Number(eq.innerDiameter),
+            DN: Number(eq.DN),
+            newPhotos: [],
+            removedPhotos: [],
+          };
+        }),
+      },
+      true,
+    );
+    if (editedEquipments.status === 200) {
+      toast.success("Equipamentos atualizados com sucesso");
+      await GetAllData(); // Refresh all data
+      setSelectedEquipmentStep(3);
+    } else {
+      toast.error("Erro ao atualizar Equipamentos");
+    }
+
+    setIsModifyingEquipments(false);
+  }
+
+  const HandleNextStep = () => {
+    // 1. flatten everything
+    const currentEquipments: EquipmentTypeProps[] = equipmentData || [];
+
+    // 2. your original list from context
+    const original = originalEquipments || [];
+
+    const modifiedEquipments = currentEquipments.filter((eq) => {
+      const o = original.find((o) => o.position === eq.position);
+
+      return (
+        o &&
+        (o.initialRotation !== eq.initialRotation ||
+          o.finalRotation !== eq.finalRotation ||
+          o.lubrication !== eq.lubrication ||
+          o.power !== eq.power ||
+          o.operationTemperature !== eq.operationTemperature ||
+          o.mainComponent !== eq.mainComponent ||
+          o.RPM !== eq.RPM ||
+          o.innerDiameter !== eq.innerDiameter ||
+          o.DN !== eq.DN)
+      );
+    });
+    // 4. dispatch your three API calls exactly as before
+    const promises: Promise<void>[] = [];
+    if (modifiedEquipments.length)
+      promises.push(HandleUpdateEquipments(modifiedEquipments));
+    // 5. step on
+    if (promises.length) {
+      Promise.all(promises).then(() => setSelectedEquipmentStep(3));
+    } else {
+      setSelectedEquipmentStep(3);
+    }
   };
 
   useEffect(() => {
@@ -92,15 +171,7 @@ export function EquipmentInfoAccordion({
           <div className="text-primary flex items-center gap-2 text-base font-bold md:gap-4 md:text-2xl">
             <span>1.2</span>
             <div className="flex flex-col">
-              <span className="leading-6">Cadastramento de Subconjunto</span>
-              <span
-                className={cn(
-                  "w-max text-xs font-normal text-neutral-500 md:text-sm",
-                  selectedEquipmentStep !== 2 && "hidden",
-                )}
-              >
-                O que é um Subconjunto? Explicitar
-              </span>
+              <span className="leading-6">Especificações Técnicas</span>
             </div>
           </div>
           {selectedEquipmentStep === 2 && (
@@ -128,7 +199,7 @@ export function EquipmentInfoAccordion({
               <div
                 onClick={(e) => {
                   e.stopPropagation();
-                  setSelectedEquipmentStep(3);
+                  HandleNextStep();
                 }}
                 className={cn(
                   "bg-primary pointer-events-none flex h-6 cursor-not-allowed items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white opacity-50 md:h-10 md:px-4",
@@ -136,8 +207,17 @@ export function EquipmentInfoAccordion({
                     "pointer-events-auto cursor-auto opacity-100",
                 )}
               >
-                <span className="hidden md:block">Avançar 1.3</span>
-                <ArrowRight className="h-4 md:h-8" />
+                {isModifyingEquipments ? (
+                  <>
+                    <span className="hidden md:block">Salvando...</span>
+                    <Loader2 className="h-4 animate-spin md:h-8" />
+                  </>
+                ) : (
+                  <>
+                    <span className="hidden md:block">Avançar 1.3</span>
+                    <ArrowRight className="h-4 md:h-8" />
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -516,8 +596,8 @@ export function EquipmentInfoAccordion({
             <>
               <div className="col-span-4 flex flex-col gap-2">
                 <span>
-                  Texto para Explicar que deverá selecionar um Setor antes do
-                  Equipamento:
+                  Texto para Explicar que deverá selecionar um Equipamento antes
+                  de preencher as Especificações Técnicas:
                 </span>
                 <label className="border-primary relative flex h-8 w-60 items-center rounded-md border">
                   <input
