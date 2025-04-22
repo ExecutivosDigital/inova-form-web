@@ -1,8 +1,11 @@
+import { ServiceTypeProps } from "./ServiceTypes";
+
 export interface CipProps {
   name: string;
   code: string;
   id: string;
   position: string;
+  SubsetId?: string;
 }
 
 export interface SubSetProps {
@@ -11,6 +14,7 @@ export interface SubSetProps {
   id: string;
   position: string;
   cip: CipProps[] | null;
+  setId?: string;
 }
 
 export interface SetProps {
@@ -19,6 +23,7 @@ export interface SetProps {
   id: string;
   position: string;
   subSets: SubSetProps[] | null;
+  equipmentId?: string;
 }
 
 export interface EquipmentPhotoProps {
@@ -39,6 +44,7 @@ export interface EquipmentsProps {
   id: string;
   position: string;
   sets: SetProps[] | null;
+  sectorId?: string;
   initialRotation?: number;
   finalRotation?: number;
   lubrication?: string;
@@ -48,6 +54,7 @@ export interface EquipmentsProps {
   RPM?: number;
   innerDiameter?: number;
   DN?: number;
+  services?: ServiceTypeProps[] | null;
 }
 
 export interface SectorProps {
