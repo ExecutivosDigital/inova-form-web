@@ -78,8 +78,6 @@ export const LayoutContextProvider = ({ children }: ProviderProps) => {
   const [cipCount, setCipCount] = useState(1);
   const [isGettingData, setIsGettingData] = useState(true);
 
-  console.log("layoutData: ", layoutData);
-
   async function GetAreas() {
     const areas = await GetAPI("/area", true);
     if (areas.status !== 200) return;

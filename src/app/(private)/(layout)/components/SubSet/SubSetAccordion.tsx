@@ -379,7 +379,6 @@ export function SubSetAccordion({
       },
       true,
     );
-    console.log("newSubSets", newSubSets);
     if (newSubSets.status === 200) {
       toast.success("Subconjuntos cadastrados com sucesso");
       await GetSubSets(); // re-fetch areas from the API
@@ -411,7 +410,6 @@ export function SubSetAccordion({
       },
       true,
     );
-    console.log("editedSubSets", editedSubSets);
     if (editedSubSets.status === 200) {
       toast.success("Subconjuntos atualizados com sucesso");
       await GetAllData();
@@ -428,7 +426,6 @@ export function SubSetAccordion({
     setIsModifyingSubSets(true);
     const ids = modifiedSubSets.map((subSet) => subSet.id).join(",");
     const deletedSubSets = await DeleteAPI(`/subset?subsets=${ids}`, true);
-    console.log("deletedSubSets", deletedSubSets);
     if (deletedSubSets.status === 200) {
       toast.success("Subconjuntos deletados com sucesso");
       await GetSubSets();

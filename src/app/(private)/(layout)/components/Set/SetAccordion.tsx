@@ -343,7 +343,6 @@ export function SetAccordion({
       },
       true,
     );
-    console.log("newSetResponse", newSetResponse);
     if (newSetResponse.status === 200) {
       toast.success("Conjuntos cadastrados com sucesso");
       await GetSets(); // re-fetch areas from the API

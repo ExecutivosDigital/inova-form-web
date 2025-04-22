@@ -374,7 +374,6 @@ export function CipAccordion({
       },
       true,
     );
-    console.log("newCips", newCips);
     if (newCips.status === 200) {
       toast.success("CIPs cadastrados com sucesso");
       await GetCips(); // re-fetch areas from the API
@@ -430,7 +429,6 @@ export function CipAccordion({
       },
       true,
     );
-    console.log("editedCips", editedCips);
     if (editedCips.status === 200) {
       toast.success("CIPs atualizados com sucesso");
       await GetCips();
@@ -448,7 +446,6 @@ export function CipAccordion({
 
     const ids = modifiedCips.map((cip) => cip.id).join(",");
     const deletedCips = await DeleteAPI(`/cip?cips=${ids}`, true);
-    console.log(" deletedCips", deletedCips);
     if (deletedCips.status === 200) {
       toast.success("CIPs deletados com sucesso");
       await GetCips();

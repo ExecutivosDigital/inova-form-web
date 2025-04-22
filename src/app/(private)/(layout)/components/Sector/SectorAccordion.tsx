@@ -176,7 +176,6 @@ export function SectorAccordion({
       },
       true,
     );
-    console.log("createdSectors", createdSectors);
     if (createdSectors.status === 200) {
       toast.success("Setores cadastrados com sucesso");
       await GetSectors(); // re-fetch areas from the API

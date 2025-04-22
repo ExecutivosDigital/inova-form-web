@@ -118,7 +118,6 @@ export function AreaAccordion({
       },
       true,
     );
-    console.log("createdAreas", createdAreas);
     if (createdAreas.status === 200) {
       toast.success("Áreas cadastradas com sucesso");
       await GetAreas(); // re-fetch areas from the API
