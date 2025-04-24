@@ -74,7 +74,6 @@ export function EquipmentInfoAccordion({
   async function HandleUpdateEquipments(
     modifiedEquipments: EquipmentTypeProps[],
   ) {
-    console.log("modifiedEquipments", modifiedEquipments);
     if (modifiedEquipments.length === 0) return;
     setIsModifyingEquipments(true);
     const editedEquipments = await PutAPI(
