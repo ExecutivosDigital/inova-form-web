@@ -19,18 +19,22 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/global/ui/popover";
+import { useApiContext } from "@/context/ApiContext";
 import { useEquipmentContext } from "@/context/EquipmentContext";
 import { useLayoutContext } from "@/context/LayoutContext";
+import { useMaterialContext } from "@/context/MaterialContext";
 import { cn } from "@/lib/utils";
 import { DropdownMenuArrow } from "@radix-ui/react-dropdown-menu";
 import {
   ArrowRight,
   ChevronDown,
   ChevronLeft,
+  Loader2,
   Search,
   Upload,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 
 interface EquipmentProductInfoAccordionProps {
   selectedEquipmentStep: number;
@@ -41,8 +45,16 @@ export function EquipmentProductInfoAccordion({
   selectedEquipmentStep,
   setSelectedEquipmentStep,
 }: EquipmentProductInfoAccordionProps) {
+  const { PutAPI } = useApiContext();
   const { layoutData } = useLayoutContext();
-  const { equipmentData, setEquipmentData } = useEquipmentContext();
+  const { materialsData } = useMaterialContext();
+  const {
+    equipmentData,
+    setEquipmentData,
+    originalEquipments,
+    filters,
+    GetAllData,
+  } = useEquipmentContext();
 
   const [isImportHovered, setIsImportHovered] = useState(false);
   const [selectedSector, setSelectedSector] = useState<SectorProps | null>(
@@ -54,6 +66,7 @@ export function EquipmentProductInfoAccordion({
   const [isEquipmentNameHovered, setIsEquipmentNameHovered] = useState(false);
   const [selectedEquipment, setSelectedEquipment] =
     useState<EquipmentTypeProps | null>(null);
+  const [isModifyingEquipments, setIsModifyingEquipments] = useState(false);
 
   const handleInputChange = (
     index: number,
@@ -77,6 +90,71 @@ export function EquipmentProductInfoAccordion({
         [field]: value,
       };
     });
+  };
+
+  async function HandleUpdateEquipments(
+    modifiedEquipments: EquipmentTypeProps[],
+  ) {
+    if (modifiedEquipments.length === 0) return;
+    setIsModifyingEquipments(true);
+    const editedEquipments = await PutAPI(
+      "/equipment/multi",
+      {
+        equipments: modifiedEquipments.map((eq) => {
+          return {
+            equipmentId: eq.id,
+            productId: materialsData?.find((m) => m.name === eq.productId)?.id,
+            volume: Number(eq.volume),
+            contaminationLevel: eq.contaminationLevel,
+            filterId: filters?.find((f) => f.name === eq.filterId)?.id,
+            filterProducts: eq.filterProducts,
+            newPhotos: [],
+            removedPhotos: [],
+          };
+        }),
+      },
+      true,
+    );
+    if (editedEquipments.status === 200) {
+      toast.success("Equipamentos atualizados com sucesso");
+      await GetAllData(); // Refresh all data
+      setSelectedEquipmentStep(3);
+    } else {
+      toast.error("Erro ao atualizar Equipamentos");
+    }
+
+    setIsModifyingEquipments(false);
+  }
+
+  const HandleNextStep = () => {
+    // 1. flatten everything
+    const currentEquipments: EquipmentTypeProps[] = equipmentData || [];
+
+    // 2. your original list from context
+    const original = originalEquipments || [];
+
+    const modifiedEquipments = currentEquipments.filter((eq) => {
+      const o = original.find((o) => o.position === eq.position);
+
+      return (
+        o &&
+        (o.productId !== eq.productId ||
+          o.volume !== eq.volume ||
+          o.contaminationLevel !== eq.contaminationLevel ||
+          o.filterId !== eq.filterId ||
+          o.filterProducts !== eq.filterProducts)
+      );
+    });
+    // 4. dispatch your three API calls exactly as before
+    const promises: Promise<void>[] = [];
+    if (modifiedEquipments.length)
+      promises.push(HandleUpdateEquipments(modifiedEquipments));
+    // 5. step on
+    if (promises.length) {
+      Promise.all(promises).then(() => setSelectedEquipmentStep(4));
+    } else {
+      setSelectedEquipmentStep(4);
+    }
   };
 
   useEffect(() => {
@@ -138,7 +216,7 @@ export function EquipmentProductInfoAccordion({
               <div
                 onClick={(e) => {
                   e.stopPropagation();
-                  setSelectedEquipmentStep(4);
+                  HandleNextStep();
                 }}
                 className={cn(
                   "bg-primary pointer-events-none flex h-6 cursor-not-allowed items-center gap-2 rounded-full px-2 py-2 text-sm font-semibold text-white opacity-50 md:h-10 md:px-4",
@@ -146,8 +224,17 @@ export function EquipmentProductInfoAccordion({
                     "pointer-events-auto cursor-auto opacity-100",
                 )}
               >
-                <span className="hidden md:block">Avançar 1.4</span>
-                <ArrowRight className="h-4 md:h-8" />
+                {isModifyingEquipments ? (
+                  <>
+                    <span className="hidden md:block">Salvando...</span>
+                    <Loader2 className="h-4 animate-spin md:h-8" />
+                  </>
+                ) : (
+                  <>
+                    <span className="hidden md:block">Avançar 1.3</span>
+                    <ArrowRight className="h-4 md:h-8" />
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -286,9 +373,12 @@ export function EquipmentProductInfoAccordion({
                         className="h-10 w-full rounded-2xl bg-white p-2 px-2 shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] placeholder:text-neutral-300 focus:outline-none md:h-12 md:px-4"
                         placeholder="Tipo do Equipamento"
                         value={
-                          equipmentData.find(
-                            (eq) => eq.id === selectedEquipment.id,
-                          )?.productId
+                          materialsData?.find(
+                            (m) => m.id === selectedEquipment?.productId,
+                          )?.name || ""
+                          // equipmentData.find(
+                          //   (eq) => eq.id === selectedEquipment.id,
+                          // )?.productId || ""
                         }
                         readOnly
                       />
@@ -297,51 +387,25 @@ export function EquipmentProductInfoAccordion({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="bg-white">
                     <DropdownMenuArrow />
-                    <DropdownMenuItem
-                      onClick={() =>
-                        handleInputChange(
-                          Number(
-                            equipmentData
-                              .find((eq) => eq.id === selectedEquipment.id)
-                              ?.position.split(".")[2],
-                          ) - 1,
-                          "productId",
-                          "Tipo 1",
-                        )
-                      }
-                    >
-                      Tipo 1
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() =>
-                        handleInputChange(
-                          Number(
-                            equipmentData
-                              .find((eq) => eq.id === selectedEquipment.id)
-                              ?.position.split(".")[2],
-                          ) - 1,
-                          "productId",
-                          "Tipo 2",
-                        )
-                      }
-                    >
-                      Tipo 2
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() =>
-                        handleInputChange(
-                          Number(
-                            equipmentData
-                              .find((eq) => eq.id === selectedEquipment.id)
-                              ?.position.split(".")[2],
-                          ) - 1,
-                          "productId",
-                          "Tipo 3",
-                        )
-                      }
-                    >
-                      Tipo 3
-                    </DropdownMenuItem>
+                    {materialsData?.map((material) => (
+                      <DropdownMenuItem
+                        key={material.id}
+                        onClick={() =>
+                          handleInputChange(
+                            Number(
+                              equipmentData
+                                .find((eq) => eq.id === selectedEquipment.id)
+                                ?.position.split(".")[2],
+                            ) - 1,
+                            "productId",
+                            material.name,
+                          )
+                        }
+                        className="bg-white"
+                      >
+                        {material.name}
+                      </DropdownMenuItem>
+                    ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -380,7 +444,7 @@ export function EquipmentProductInfoAccordion({
                       <input
                         type="text"
                         className="h-10 w-full rounded-2xl bg-white p-2 px-2 shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] placeholder:text-neutral-300 focus:outline-none md:h-12 md:px-4"
-                        placeholder="Tipo do Equipamento"
+                        placeholder="Nível de Contaminação"
                         value={
                           equipmentData.find(
                             (eq) => eq.id === selectedEquipment.id,
@@ -394,7 +458,7 @@ export function EquipmentProductInfoAccordion({
                                     (eq) => eq.id === selectedEquipment.id,
                                   )?.contaminationLevel === "high"
                                 ? "Alto"
-                                : "Outro"
+                                : ""
                         }
                         readOnly
                       />
@@ -453,26 +517,53 @@ export function EquipmentProductInfoAccordion({
               </div>
               <div className="flex flex-col">
                 <span className="text-primary text-xs md:text-sm">Filtros</span>
-                <input
-                  type="text"
-                  className="h-10 w-full rounded-2xl bg-white p-2 px-2 shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] placeholder:text-neutral-300 focus:outline-none md:h-12 md:px-4"
-                  placeholder="Filtros"
-                  value={
-                    equipmentData.find((eq) => eq.id === selectedEquipment.id)
-                      ?.filterId
-                  }
-                  onChange={(e) =>
-                    handleInputChange(
-                      Number(
-                        equipmentData
-                          .find((eq) => eq.id === selectedEquipment.id)
-                          ?.position.split(".")[2],
-                      ) - 1,
-                      "filterId",
-                      e.target.value,
-                    )
-                  }
-                />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild className="group relative">
+                    <div className="relative flex w-full items-center">
+                      <input
+                        type="text"
+                        className="h-10 w-full rounded-2xl bg-white p-2 px-2 shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)] placeholder:text-neutral-300 focus:outline-none md:h-12 md:px-4"
+                        placeholder="Filtros"
+                        value={
+                          filters?.find(
+                            (f) =>
+                              f.id ===
+                              equipmentData.find(
+                                (eq) => eq.id === selectedEquipment.id,
+                              )?.filterId,
+                          )?.name || ""
+                          // equipmentData.find(
+                          //   (eq) => eq.id === selectedEquipment.id,
+                          // )?.filterId || ""
+                        }
+                        readOnly
+                      />
+                      <ChevronDown className="absolute top-1/2 right-0 -translate-y-1/2 transition duration-150 data-[state=closed]:rotate-180" />
+                    </div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="bg-white">
+                    <DropdownMenuArrow />
+                    {filters?.map((filter) => (
+                      <DropdownMenuItem
+                        key={filter.id}
+                        onClick={() =>
+                          handleInputChange(
+                            Number(
+                              equipmentData
+                                .find((eq) => eq.id === selectedEquipment.id)
+                                ?.position.split(".")[2],
+                            ) - 1,
+                            "filterId",
+                            filter.name,
+                          )
+                        }
+                        className="bg-white"
+                      >
+                        {filter.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
               <div className="flex flex-col">
                 <span className="text-primary text-xs md:text-sm">
@@ -497,51 +588,25 @@ export function EquipmentProductInfoAccordion({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="bg-white">
                     <DropdownMenuArrow />
-                    <DropdownMenuItem
-                      onClick={() =>
-                        handleInputChange(
-                          Number(
-                            equipmentData
-                              .find((eq) => eq.id === selectedEquipment.id)
-                              ?.position.split(".")[2],
-                          ) - 1,
-                          "filterProducts",
-                          "Produto 1",
-                        )
-                      }
-                    >
-                      Produto 1
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() =>
-                        handleInputChange(
-                          Number(
-                            equipmentData
-                              .find((eq) => eq.id === selectedEquipment.id)
-                              ?.position.split(".")[2],
-                          ) - 1,
-                          "filterProducts",
-                          "Produto 2",
-                        )
-                      }
-                    >
-                      Produto 2
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() =>
-                        handleInputChange(
-                          Number(
-                            equipmentData
-                              .find((eq) => eq.id === selectedEquipment.id)
-                              ?.position.split(".")[2],
-                          ) - 1,
-                          "filterProducts",
-                          "Produto 3",
-                        )
-                      }
-                    >
-                      Produto 3
-                    </DropdownMenuItem>
+                    {materialsData?.map((material) => (
+                      <DropdownMenuItem
+                        key={material.id}
+                        onClick={() =>
+                          handleInputChange(
+                            Number(
+                              equipmentData
+                                .find((eq) => eq.id === selectedEquipment.id)
+                                ?.position.split(".")[2],
+                            ) - 1,
+                            "filterProducts",
+                            material.name,
+                          )
+                        }
+                        className="bg-white"
+                      >
+                        {material.name}
+                      </DropdownMenuItem>
+                    ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>

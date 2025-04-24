@@ -1,6 +1,9 @@
 "use client";
 
-import { EquipmentTypeProps } from "@/@types/EquipmentTypes";
+import {
+  EquipmentFilterProps,
+  EquipmentTypeProps,
+} from "@/@types/EquipmentTypes";
 import {
   CipProps,
   EquipmentsProps,
@@ -23,6 +26,10 @@ interface EquipmentContextProps {
   setCipCount: React.Dispatch<React.SetStateAction<number>>;
   query: string;
   setQuery: React.Dispatch<React.SetStateAction<string>>;
+  filters: EquipmentFilterProps[] | null;
+  setFilters: React.Dispatch<
+    React.SetStateAction<EquipmentFilterProps[] | null>
+  >;
   GetAllData: () => void;
 }
 
@@ -43,8 +50,16 @@ export const EquipmentContextProvider = ({ children }: ProviderProps) => {
   >([]);
   const [cipCount, setCipCount] = useState(1);
   const [query, setQuery] = useState<string>("");
+  const [filters, setFilters] = useState<EquipmentFilterProps[] | null>(null);
 
-  console.log("equipmentData", equipmentData);
+  console.log("Equipment Data:", equipmentData);
+
+  async function GetFilters() {
+    const filters = await GetAPI("/filter", true);
+    if (filters.status === 200) {
+      setFilters(filters.body.filters);
+    }
+  }
 
   async function GetAllData() {
     try {
@@ -106,6 +121,7 @@ export const EquipmentContextProvider = ({ children }: ProviderProps) => {
 
   useEffect(() => {
     GetAllData();
+    GetFilters();
   }, []);
 
   return (
@@ -121,6 +137,8 @@ export const EquipmentContextProvider = ({ children }: ProviderProps) => {
         setCipCount,
         query,
         setQuery,
+        filters,
+        setFilters,
         GetAllData,
       }}
     >
